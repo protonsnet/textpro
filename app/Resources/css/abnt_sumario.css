@@ -1,0 +1,59 @@
+/* ===========================
+   SUMÁRIO — PADRÃO ABNT
+=========================== */
+
+.sumario {
+    page-break-after: always;
+}
+
+.sumario h1,
+.sumario h2 {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1cm;
+    text-transform: uppercase;
+}
+
+.sumario ol {
+    list-style: none;
+    padding-left: 0;
+    counter-reset: item;
+}
+
+.sumario li {
+    counter-increment: item;
+    margin-bottom: 0.4cm;
+    font-size: 12pt;
+    line-height: 1.5;
+    position: relative;
+}
+
+.sumario li::before {
+    content: counters(item, ".") ". ";
+    font-weight: normal;
+}
+
+.sumario .titulo {
+    display: inline-block;
+    max-width: 85%;
+}
+
+.sumario .pagina {
+    float: right;
+}
+
+.sumario::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+/* Alinhamento pontilhado (ABNT clássico) */
+.sumario li {
+    border-bottom: 1px dotted #000;
+}
+
+.sumario li span {
+    background: #fff;
+    padding-right: 5px;
+}

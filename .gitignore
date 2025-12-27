@@ -1,0 +1,40 @@
+# --- Segurança e Configurações Locais ---
+.env
+.env.local
+.env.*.local
+config.php
+# Ignora arquivos de dump de banco de dados para evitar vazamento de dados
+*.sql
+
+# --- Dependências (PHP/Composer) ---
+# Jamais suba a pasta vendor. O correto é rodar 'composer install' no servidor.
+/vendor/
+composer.lock
+
+# --- Logs e Temporários ---
+logs/
+*.log
+/temp/
+/storage/*.log
+
+# --- Arquivos de Sistema (OS) ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Configurações de IDEs e Editores ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.settings/
+.buildpath
+
+# --- Front-end (se houver Node.js) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/

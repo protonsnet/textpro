@@ -1,0 +1,7 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redireciona tudo para /public
+    RewriteCond %{REQUEST_URI} !^/textpro/public/
+    RewriteRule ^(.*)$ /textpro/public/$1 [L]
+</IfModule>

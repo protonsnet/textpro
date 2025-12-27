@@ -1,0 +1,247 @@
+1. MODELO DE FUNCIONAMENTO (VISÃO GERAL)
+Papéis
+
+Cliente
+
+Criar / editar documentos
+
+Usar editor conforme plano
+
+Exportar PDF se permitido
+
+Admin
+
+Acesso total
+
+Criar templates
+
+Definir normas ABNT
+
+Gerenciar usuários, planos e permissões
+
+Fluxo do Documento
+
+Usuário clica Novo Documento
+
+Escolhe:
+
+Template
+
+Título
+
+Abre editor TinyMCE
+
+Salva conteúdo (HTML)
+
+Exporta:
+
+PDF (template + ABNT)
+
+Futuro: MP3 (narrador)
+
+2. EDITOR – TinyMCE (CORE DO SISTEMA)
+
+Você acertou em cheio escolhendo TinyMCE.
+
+Funcionalidades que vamos ativar
+
+Fonte (família e tamanho)
+
+Negrito / Itálico / Sublinhado
+
+Cores
+
+Alinhamento
+
+Listas (marcadores e numeração)
+
+Tabelas
+
+Upload de imagens
+
+Inserção de HTML (controlado)
+
+Templates (dropdown)
+
+Estilos customizados (ABNT)
+
+Configuração base (resumo)
+tinymce.init({
+  selector: '#editor',
+  plugins: [
+    'lists', 'link', 'image', 'table', 'code',
+    'preview', 'fullscreen', 'wordcount', 'template'
+  ],
+  toolbar: `
+    undo redo | fontfamily fontsize |
+    bold italic underline | forecolor backcolor |
+    alignleft aligncenter alignright justify |
+    bullist numlist | table image |
+    template | fullscreen preview
+  `,
+  font_family_formats: `
+    Arial=arial,helvetica,sans-serif;
+    Times New Roman=times new roman,times;
+    Calibri=calibri;
+  `,
+});
+
+3. TEMPLATES (SEU DIFERENCIAL)
+
+Sua tabela templates está excelente. Ela já suporta:
+
+Controla automaticamente:
+
+Tamanho do papel
+
+Margens
+
+Fonte e tamanho
+
+Alinhamento
+
+Entrelinhas
+
+Cabeçalho / Rodapé
+
+Numeração de páginas
+
+Capa
+
+Como aplicar o template
+
+Ao abrir o editor:
+
+Busca template no banco
+
+Injeta CSS no TinyMCE
+
+Aplica como estilo padrão
+
+Exemplo de CSS gerado dinamicamente:
+
+body {
+  font-family: "Times New Roman";
+  font-size: 12pt;
+  line-height: 1.5;
+  text-align: justify;
+  margin: 3cm 2cm 2cm 3cm;
+}
+
+4. DOCUMENTS (SALVAMENTO E USO)
+
+Sua tabela documents está correta e bem pensada.
+
+Campos-chave
+
+conteudo_html → HTML do TinyMCE
+
+prefacio → texto separado
+
+template_id → define visual final
+
+gerar_indice → ativa sumário automático
+
+capa_personalizada → JSON (imagem + textos)
+
+Salvamento
+
+Endpoint:
+
+POST /document/save
+
+
+Salva:
+
+HTML puro
+
+Template selecionado
+
+Atualiza document_usage
+
+5. EXPORTAÇÃO PDF (ABNT)
+Ferramenta recomendada
+
+Dompdf ou mPDF
+(mPDF é melhor para ABNT e rodapé/cabeçalho)
+
+Processo
+
+Carrega documento
+
+Carrega template
+
+Monta HTML final:
+
+Capa
+
+Prefácio
+
+Conteúdo
+
+Índice (se ativado)
+
+Aplica CSS ABNT
+
+Gera PDF
+
+Índice automático
+
+TinyMCE já gera <h1>, <h2>, <h3>
+O mPDF consegue gerar sumário automaticamente com base nisso.
+
+6. FUNCIONALIDADES AVANÇADAS (ROADMAP REALISTA)
+✅ Curto prazo (viável agora)
+
+Editor completo
+
+Templates
+
+Exportação PDF
+
+Capa automática
+
+Limite por plano
+
+Controle RBAC
+
+⚠️ Médio prazo
+
+Corretor ortográfico
+(TinyMCE Premium ou integração LanguageTool)
+
+Índice automático avançado
+
+🔥 Futuro (alto valor)
+
+Exportar MP3
+
+Amazon Polly
+
+Google TTS
+
+Conversão para livro
+
+Capítulos automáticos
+
+Normas ABNT por tipo de trabalho
+
+7. AJUSTE NA SIDEBAR (DOCUMENTOS)
+
+Você já está quase certo. O correto é:
+
+<?php if (PermissionMiddleware::can('documents.edit')): ?>
+    <a href="<?= BASE_URL ?>/editor"
+       class="p-3 rounded-lg <?= active('/editor') ?>">
+        Novo Documento
+    </a>
+<?php endif; ?>
+
+
+E exportação:
+
+<?php if (PermissionMiddleware::can('documents.export')): ?>
+    <a href="<?= BASE_URL ?>/document/export/pdf/<?= $doc->id ?>">
+        Exportar PDF
+    </a>
+<?php endif; ?>

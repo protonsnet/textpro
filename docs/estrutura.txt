@@ -1,0 +1,13 @@
+/meu-projeto
+├── /app
+│   ├── /Core
+│   │   ├── Database.php
+│   │   └── Controller.php
+│   ├── /Controllers
+│   ├── /Models
+│   └── /Views
+├── /public
+│   └── index.php
+├── .env
+├── composer.json
+└── /vendor (gerado automaticamente)
