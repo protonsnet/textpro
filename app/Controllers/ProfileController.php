@@ -40,7 +40,7 @@ class ProfileController extends Controller
         if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
             $ext = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
             $newName = 'profile_' . $userId . '_' . time() . '.' . $ext;
-            $uploadDir = 'public/uploads/profiles/';
+            $uploadDir = 'uploads/profiles/';
 
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);

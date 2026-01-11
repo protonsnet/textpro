@@ -12,15 +12,25 @@ class SubscriptionPolicy
      */
     public static function ensureActive(int $userId): void
     {
-        if (PermissionMiddleware::can('admin.access')) {
+        if (\App\Core\PermissionMiddleware::can('admin.access')) {
             return;
         }
 
-        $subscriptionModel = new SubscriptionModel();
+        $subscriptionModel = new \App\Models\SubscriptionModel();
         $subscription = $subscriptionModel->findActiveSubscription($userId);
 
-        // Se não achar assinatura ou se ela estiver expirada/suspensa no banco
-        if (!$subscription || $subscription->status !== 'active') {
+        // DEBUG TEMPORÁRIO (Remova após testar):
+        // if (!$subscription) { die("Policy: Nenhuma assinatura encontrada para o user $userId"); }
+        // if ($subscription->status !== 'active' && $subscription->status !== 'trialing') { 
+        //    die("Policy: Status inválido: " . $subscription->status); 
+        // }
+
+        // O status deve estar em letras minúsculas para evitar erro de comparação
+        $status = $subscription ? strtolower($subscription->status) : '';
+        $allowed = ['active', 'trialing'];
+
+        if (!$subscription || !in_array($status, $allowed)) {
+            $_SESSION['error'] = "Sua assinatura não está ativa.";
             header('Location: ' . BASE_URL . '/plans');
             exit;
         }

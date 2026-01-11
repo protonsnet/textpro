@@ -13,20 +13,19 @@ class UsageService
     public static function canCreateDocument(?int $limit): bool
     {
         $userId = $_SESSION['user_id'] ?? null;
+        if (!$userId) return false;
 
-        if (!$userId) {
-            return false;
+        if (PermissionMiddleware::can('admin.dashboard')) return true;
+
+        // Busca no banco para não depender APENAS da sessão que pode estar cacheada
+        $subModel = new \App\Models\SubscriptionModel();
+        $sub = $subModel->findActiveSubscription((int)$userId);
+
+        if ($sub && strtolower($sub->status) === 'trialing') {
+            return true; // Trial sempre pode criar
         }
 
-        // 👑 ADMIN → acesso ilimitado
-        if (PermissionMiddleware::can('admin.dashboard')) {
-            return true;
-        }
-
-        // 🔓 Plano sem limite
-        if ($limit === null) {
-            return true;
-        }
+        if ($limit === null || $limit === -1) return true;
 
         return self::getCurrentUsage() < $limit;
     }

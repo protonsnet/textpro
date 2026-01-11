@@ -15,7 +15,7 @@
                     <?php 
                         // Tratando foto nula
                         $foto = $user->foto ?? '';
-                        $fotoPath = !empty($foto) ? BASE_URL . '/public/uploads/profiles/' . $foto : 'https://ui-avatars.com/api/?name=' . urlencode($user->nome);
+                        $fotoPath = !empty($foto) ? BASE_URL . '/uploads/profiles/' . $foto : 'https://ui-avatars.com/api/?name=' . urlencode($user->nome);
                     ?>
                     <img src="<?= $fotoPath ?>" id="preview" class="w-32 h-32 rounded-full object-cover border-4 border-slate-100 shadow-sm">
                     <label for="foto" class="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full text-white cursor-pointer hover:bg-blue-700 shadow-lg transition">

@@ -6,10 +6,13 @@ use App\Core\Controller;
 use App\Core\AuthMiddleware;
 use App\Core\PermissionMiddleware;
 use App\Models\TemplateModel;
+use App\Services\FontService;
+
 
 class AdminTemplateController extends Controller
 {
     protected TemplateModel $templateModel;
+    protected FontService $fontService;
 
     public function __construct()
     {
@@ -17,6 +20,7 @@ class AdminTemplateController extends Controller
 
         AuthMiddleware::check();
         $this->templateModel = new TemplateModel();
+        $this->fontService   = new FontService();
     }
 
     /**
@@ -46,7 +50,8 @@ class AdminTemplateController extends Controller
         PermissionMiddleware::check('templates.create');
 
         $this->view('admin/templates/create', [
-            'title' => 'Criar Novo Template'
+            'title'          => 'Criar Novo Template',
+            'availableFonts' => $this->fontService->getFontNames()
         ]);
     }
 
@@ -94,8 +99,9 @@ class AdminTemplateController extends Controller
         }
 
         $this->view('admin/templates/edit', [
-            'template' => $template,
-            'title'    => 'Editar Template'
+            'template'       => $template,
+            'title'          => 'Editar Template',
+            'availableFonts' => $this->fontService->getFontNames()
         ]);
     }
 
@@ -145,33 +151,53 @@ class AdminTemplateController extends Controller
      */
     private function sanitizeTemplateData(array $input): array
     {
-        return [
-            'nome'               => trim($input['nome']),
-            'tamanho_papel'      => $input['tamanho_papel'] ?? 'custom',
+        $fonts = $this->getAvailableFonts();
 
-            // Dimensões personalizadas (em cm)
-            'largura_papel'      => isset($input['largura_papel']) ? (float)$input['largura_papel'] : null,
-            'altura_papel'       => isset($input['altura_papel']) ? (float)$input['altura_papel'] : null,
+        return [
+            'nome'              => trim($input['nome']),
+            'tamanho_papel'     => $input['tamanho_papel'] ?? 'custom',
+
+            // Dimensões
+            'largura_papel'     => isset($input['largura_papel']) ? (float)$input['largura_papel'] : null,
+            'altura_papel'      => isset($input['altura_papel']) ? (float)$input['altura_papel'] : null,
 
             // Margens
-            'margem_superior'    => (float)($input['margem_superior'] ?? 3.0),
-            'margem_inferior'    => (float)($input['margem_inferior'] ?? 2.0),
-            'margem_esquerda'    => (float)($input['margem_esquerda'] ?? 3.0),
-            'margem_direita'     => (float)($input['margem_direita'] ?? 2.0),
+            'margem_superior'   => (float)($input['margem_superior'] ?? 3.0),
+            'margem_inferior'   => (float)($input['margem_inferior'] ?? 2.0),
+            'margem_esquerda'   => (float)($input['margem_esquerda'] ?? 3.0),
+            'margem_direita'    => (float)($input['margem_direita'] ?? 2.0),
 
-            // Texto
-            'fonte_familia'      => $input['fonte_familia'] ?? 'Times New Roman',
-            'fonte_tamanho'      => (int)($input['fonte_tamanho'] ?? 12),
-            'alinhamento'        => $input['alinhamento'] ?? 'justify',
-            'entre_linhas'       => (float)($input['entre_linhas'] ?? 1.5),
+            // Tipografia
+            'fonte_familia' => in_array($input['fonte_familia'] ?? '', $fonts, true)
+                            ? $input['fonte_familia']
+                            : 'Times New Roman',
+
+            'fonte_tamanho'     => (int)($input['fonte_tamanho'] ?? 12),
+            'alinhamento'       => $input['alinhamento'] ?? 'justify',
+            'entre_linhas'      => (float)($input['entre_linhas'] ?? 1.5),
 
             // Layout
-            'cabecalho_html'     => $input['cabecalho_html'] ?? null,
-            'rodape_html'        => $input['rodape_html'] ?? null,
-            'posicao_numeracao'  => $input['posicao_numeracao'] ?? 'superior_direita',
+            'cabecalho_html'    => $input['cabecalho_html'] ?? null,
+            'rodape_html'       => $input['rodape_html'] ?? null,
+            'posicao_numeracao' => $input['posicao_numeracao'] ?? 'superior_direita',
 
             // Capa
-            'template_capa_html' => $input['template_capa_html'] ?? null
+            'template_capa_html'=> $input['template_capa_html'] ?? null,
+        ];
+    }
+
+    /**
+     * =============================
+     * FONTES DISPONÍVEIS NO SISTEMA
+     * =============================
+     */
+    private function getAvailableFonts(): array
+    {
+        return [
+            'Times New Roman',
+            'Arial',
+            'Calibri',
+            'Georgia'
         ];
     }
 }

@@ -101,11 +101,12 @@
         <div class="grid grid-cols-4 gap-4">
             <div>
                 <label class="block text-sm font-semibold">Fonte</label>
-                <select name="fonte_familia" class="w-full border rounded p-2">
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Calibri">Calibri</option>
-                    <option value="Georgia">Georgia</option>
+                <select name="fonte_familia" class="w-full border rounded p-2" required>
+                    <?php foreach ($availableFonts as $font): ?>
+                        <option value="<?= htmlspecialchars($font, ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars($font, ENT_QUOTES, 'UTF-8') ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -154,10 +155,14 @@
 
         <p class="text-sm text-gray-600 mb-2">
             Variáveis disponíveis:
-            <code>{{TITLE}}</code>,
-            <code>{{AUTHOR}}</code>,
-            <code>{{YEAR}}</code>
+            <code>{{TITULO}}</code>,
+            <code>{{SUBTITULO}}</code>,
+            <code>{{AUTOR}}</code>,
+            <code>{{INSTITUICAO}}</code>,
+            <code>{{LOCAL}}</code>,
+            <code>{{ANO}}</code>
         </p>
+
 
         <textarea name="template_capa_html"
                   rows="6"
@@ -165,6 +170,37 @@
                   placeholder="<h1>{{TITLE}}</h1>">
         </textarea>
     </div>
+
+    <!-- =========================
+        CABEÇALHO / RODAPÉ
+    ========================== -->
+    <section class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-4">Cabeçalho e Rodapé (HTML)</h2>
+
+        <div class="mb-4">
+            <label class="block text-sm font-semibold mb-1">Cabeçalho</label>
+            <textarea name="cabecalho_html"
+                    rows="3"
+                    class="w-full border rounded p-2 font-mono"
+                    placeholder="Ex: {{TITLE}}">
+    <?= htmlspecialchars($template->cabecalho_html ?? '') ?>
+            </textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold mb-1">Rodapé</label>
+            <textarea name="rodape_html"
+                    rows="3"
+                    class="w-full border rounded p-2 font-mono"
+                    placeholder="Ex: Página {{PAGE}}">
+    <?= htmlspecialchars($template->rodape_html ?? '') ?>
+            </textarea>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-2">
+            Variáveis disponíveis: {{TITLE}}, {{DATE}}
+        </p>
+    </section>
 
     <!-- =========================
          AÇÕES

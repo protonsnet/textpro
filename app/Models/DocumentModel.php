@@ -53,20 +53,32 @@ class DocumentModel extends Model
                 UPDATE {$this->table}
                 SET
                     titulo = :titulo,
+                    subtitulo = :subtitulo,
+                    autor = :autor,
+                    instituicao = :instituicao,
+                    local_publicacao = :local_publicacao,
+                    ano_publicacao = :ano_publicacao,
                     conteudo_html = :conteudo_html,
                     template_id = :template_id,
                     updated_at = NOW()
                 WHERE id = :id
-                  AND user_id = :user_id
+                AND user_id = :user_id
             ");
 
             $stmt->execute([
-                ':titulo'        => $data['titulo'],
-                ':conteudo_html' => $data['conteudo_html'],
-                ':template_id'   => $data['template_id'],
-                ':id'            => $data['id'],
-                ':user_id'       => $data['user_id'],
+                ':titulo'           => $data['titulo'],
+                ':subtitulo'        => $data['subtitulo'],
+                ':autor'            => $data['autor'],
+                ':instituicao'      => $data['instituicao'],
+                ':local_publicacao' => $data['local_publicacao'],
+                ':ano_publicacao'   => $data['ano_publicacao'],
+                ':conteudo_html'    => $data['conteudo_html'],
+                ':template_id'      => $data['template_id'],
+                ':id'               => $data['id'],
+                ':user_id'          => $data['user_id'],
             ]);
+
+
 
             return (int) $data['id'];
         }
@@ -76,17 +88,36 @@ class DocumentModel extends Model
         // =========================
         $stmt = $this->db->prepare("
             INSERT INTO {$this->table}
-                (user_id, template_id, titulo, conteudo_html, created_at, updated_at)
+            (
+                user_id,
+                template_id,
+                titulo,
+                meta,
+                conteudo_html,
+                created_at,
+                updated_at
+            )
             VALUES
-                (:user_id, :template_id, :titulo, :conteudo_html, NOW(), NOW())
+            (
+                :user_id,
+                :template_id,
+                :titulo,
+                :meta,
+                :conteudo_html,
+                NOW(),
+                NOW()
+            )
+
         ");
 
         $ok = $stmt->execute([
-            ':user_id'       => $data['user_id'],
-            ':template_id'   => $data['template_id'],
-            ':titulo'        => $data['titulo'],
-            ':conteudo_html' => $data['conteudo_html'],
+            ':user_id'          => $data['user_id'],
+            ':template_id'      => $data['template_id'],
+            ':titulo'           => $data['titulo'],
+            ':meta'             => $data['meta'],
+            ':conteudo_html'    => $data['conteudo_html'],
         ]);
+
 
         return $ok ? (int) $this->db->lastInsertId() : false;
     }

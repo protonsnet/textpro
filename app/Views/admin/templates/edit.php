@@ -56,20 +56,16 @@
 
             <div>
                 <label class="block text-sm font-semibold mb-1">Largura (cm)</label>
-                <input type="number"
-                       step="0.01"
-                       name="papel_largura"
-                       value="<?= htmlspecialchars($template->papel_largura ?? 21) ?>"
-                       class="w-full border rounded p-2">
+                <input type="number" step="0.01" name="largura_papel"
+                    value="<?= htmlspecialchars($template->largura_papel ?? 21) ?>"
+                    class="w-full border rounded p-2">
             </div>
 
             <div>
                 <label class="block text-sm font-semibold mb-1">Altura (cm)</label>
-                <input type="number"
-                       step="0.01"
-                       name="papel_altura"
-                       value="<?= htmlspecialchars($template->papel_altura ?? 29.7) ?>"
-                       class="w-full border rounded p-2">
+                <input type="number" step="0.01" name="altura_papel"
+                    value="<?= htmlspecialchars($template->altura_papel ?? 29.7) ?>"
+                    class="w-full border rounded p-2">
             </div>
 
         </div>
@@ -104,10 +100,15 @@
         <h2 class="text-xl font-semibold mb-4">Texto</h2>
 
         <div class="grid grid-cols-4 gap-4">
-            <input type="text" name="fonte_familia"
-                   value="<?= htmlspecialchars($template->fonte_familia) ?>"
-                   placeholder="Fonte"
-                   class="border rounded p-2">
+            <select name="fonte_familia" class="border rounded p-2" required>
+                <?php foreach ($availableFonts as $font): ?>
+                    <option value="<?= htmlspecialchars($font, ENT_QUOTES, 'UTF-8') ?>"
+                        <?= $template->fonte_familia === $font ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($font, ENT_QUOTES, 'UTF-8') ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
 
             <input type="number" name="fonte_tamanho"
                    value="<?= $template->fonte_tamanho ?>"
@@ -165,7 +166,39 @@
                   class="w-full border rounded p-2 font-mono"><?= htmlspecialchars($template->template_capa_html ?? '') ?></textarea>
 
         <p class="text-xs text-gray-500 mt-2">
-            Variáveis disponíveis: {{TITLE}}, {{AUTHOR}}, {{YEAR}}
+            Variáveis disponíveis:
+            {{TITULO}}, {{SUBTITULO}}, {{AUTOR}}, {{INSTITUICAO}}, {{LOCAL}}, {{ANO}}
+        </p>
+    </section>
+
+    <!-- =========================
+        CABEÇALHO / RODAPÉ
+    ========================== -->
+    <section class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-4">Cabeçalho e Rodapé (HTML)</h2>
+
+        <div class="mb-4">
+            <label class="block text-sm font-semibold mb-1">Cabeçalho</label>
+            <textarea name="cabecalho_html"
+                    rows="3"
+                    class="w-full border rounded p-2 font-mono"
+                    placeholder="Ex: {{TITLE}}">
+    <?= htmlspecialchars($template->cabecalho_html ?? '') ?>
+            </textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold mb-1">Rodapé</label>
+            <textarea name="rodape_html"
+                    rows="3"
+                    class="w-full border rounded p-2 font-mono"
+                    placeholder="Ex: Página {{PAGE}}">
+    <?= htmlspecialchars($template->rodape_html ?? '') ?>
+            </textarea>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-2">
+            Variáveis disponíveis: {{TITLE}}, {{DATE}}
         </p>
     </section>
 

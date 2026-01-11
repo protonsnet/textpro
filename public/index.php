@@ -73,6 +73,10 @@ $router->get('/profile', 'ProfileController@index');
 $router->post('/profile/update', 'ProfileController@update');
 
 $router->get('/payments', 'PaymentController@index');
+$router->get('/template/{id}', 'TemplateController@show');
+$router->post('/upload/image', 'UploadController@image');
+
+
 
 
 // =============================================================
@@ -90,6 +94,7 @@ $router->get('/admin/users/create', 'AdminUserController@create');
 $router->post('/admin/users/store', 'AdminUserController@store');
 $router->get('/admin/users/edit/{id}', 'AdminUserController@editForm');
 $router->post('/admin/users/update/{id}', 'AdminUserController@update');
+$router->post('/admin/users/trial/(\d+)', 'AdminUserController@giveTrial');
 
 // ---------------- ROLES ----------------
 $router->get('/admin/roles', 'AdminRoleController@index');

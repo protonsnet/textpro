@@ -1,0 +1,23 @@
+@font-face {
+    font-family: 'Times New Roman';
+    src: url('/assets/fonts/TimesNewRoman/TimesNewRoman.ttf') format('truetype');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'Arial';
+    src: url('/assets/fonts/arial/arial.ttf') format('truetype');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'Calibri';
+    src: url('/assets/fonts/calibri/calibri.ttf') format('truetype');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'Georgia';
+    src: url('/assets/fonts/georgia/georgia.ttf') format('truetype');
+    font-weight: normal;
+}

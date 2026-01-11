@@ -40,23 +40,28 @@ class PermissionMiddleware
      */
     protected static function loadPermissions(): void
     {
-        $userId = $_SESSION['user_id'];
+        if (!isset($_SESSION['user_id'])) {
+            $_SESSION['permissions'] = [];
+            return;
+        }
 
+        $userId = $_SESSION['user_id'];
         $userRoleModel       = new UserRoleModel();
         $rolePermissionModel = new RolePermissionModel();
 
         $roles = $userRoleModel->rolesByUser($userId);
-
         $permissions = [];
 
         foreach ($roles as $role) {
             $rolePermissions = $rolePermissionModel->permissionsByRole($role->id);
-
-            foreach ($rolePermissions as $permission) {
-                $permissions[] = $permission->chave;
+            foreach ($rolePermissions as $p) {
+                $permissions[] = $p->chave;
             }
         }
 
+        // 🔑 GARANTE QUE O ADMIN SEMPRE TENHA AS PERMISSÕES CRÍTICAS
+        // Se quiser automatizar, mas o ideal é que venha do banco.
+        
         $_SESSION['permissions'] = array_values(array_unique($permissions));
         $_SESSION['permissions_loaded'] = true;
     }

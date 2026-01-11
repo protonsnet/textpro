@@ -11,13 +11,16 @@ class SubscriptionModel extends Model
 
     public function findActiveSubscription(int $userId): object|false
     {
-        // Alteração: Verificamos status E se a data de vencimento é maior ou igual a hoje
-        // Usamos COALESCE para tratar casos onde data_fim ou proximo_vencimento podem ser nulos
         $stmt = $this->db->prepare("
             SELECT * FROM {$this->table}
             WHERE user_id = :user_id
-              AND status IN ('active', 'trialing')
-              AND (proximo_vencimento >= CURDATE() OR data_fim >= NOW() OR data_fim IS NULL)
+            AND status IN ('active', 'trialing')
+            AND (
+                status = 'trialing' OR 
+                proximo_vencimento >= CURDATE() OR 
+                data_fim >= NOW() OR 
+                data_fim IS NULL
+            )
             ORDER BY id DESC 
             LIMIT 1
         ");
@@ -107,6 +110,29 @@ class SubscriptionModel extends Model
                 WHERE s.status IN ('active','trialing')
             ")
             ->fetchColumn();
+    }
+
+    public function giveManualTrial(int $userId, int $days): bool
+    {
+        $newEndDate = date('Y-m-d H:i:s', strtotime("+$days days"));
+        $vencimento = date('Y-m-d', strtotime($newEndDate));
+
+        $sql = "INSERT INTO {$this->table} 
+                (user_id, plan_id, stripe_subscription_id, status, data_inicio, data_fim, trial_ends_at, proximo_vencimento) 
+                VALUES (:user_id, 1, 'MANUAL_FREE', 'trialing', NOW(), :data_fim, :trial_ends, :vencimento)
+                ON DUPLICATE KEY UPDATE
+                    status = 'trialing',
+                    data_fim = VALUES(data_fim),
+                    trial_ends_at = VALUES(trial_ends_at),
+                    proximo_vencimento = VALUES(proximo_vencimento)";
+
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            ':user_id'    => $userId,
+            ':data_fim'   => $newEndDate,
+            ':trial_ends' => $newEndDate,
+            ':vencimento' => $vencimento
+        ]);
     }
 
 }

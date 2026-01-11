@@ -14,7 +14,6 @@ class FeatureService
     ): bool {
         
         // 1. 🔑 VERIFICAÇÃO DE ADMIN AMPLIADA
-        // Se o usuário tiver qualquer uma das permissões administrativas, ele tem acesso total
         if (
             PermissionMiddleware::can('admin.access') || 
             PermissionMiddleware::can('admin.dashboard') ||
@@ -28,25 +27,26 @@ class FeatureService
             return false;
         }
 
-        // 2. BUSCA ASSINATURA NO BANCO (Evita cache de sessão antigo)
+        // 2. BUSCA ASSINATURA NO BANCO
         $subscriptionModel = $subscriptionModel ?? new SubscriptionModel();
         $subscription = $subscriptionModel->findActiveSubscription((int)$userId);
 
-        // Se não houver assinatura ou o status não for ativo, nega o recurso
-        if (!$subscription || $subscription->status !== 'active') {
+        // AJUSTE: Aceitar status 'active' OU 'trialing' (seu cadastro manual)
+        $allowedStatuses = ['active', 'trialing'];
+        if (!$subscription || !in_array(strtolower($subscription->status), $allowedStatuses)) {
             return false;
         }
 
-        // 3. VERIFICAÇÃO DE TRIAL
+        // 3. VERIFICAÇÃO DE TRIAL (Liberar todas as features se estiver no prazo)
+        // Se o status for trialing, ele ganha acesso aos recursos básicos/totais
         if (
-            !empty($subscription->trial_ends_at) &&
-            $subscription->trial_ends_at > date('Y-m-d H:i:s')
+            strtolower($subscription->status) === 'trialing' || 
+            (!empty($subscription->trial_ends_at) && $subscription->trial_ends_at >= date('Y-m-d H:i:s'))
         ) {
             return true;
         }
 
-        // 4. VERIFICAÇÃO NA TABELA plan_features
-        // Aqui o sistema olha se o plan_id (Ex: 2 para Premium) tem a feature (Ex: export_pdf)
+        // 4. VERIFICAÇÃO NA TABELA plan_features (Para assinaturas normais)
         $planFeatureModel  = $planFeatureModel ?? new PlanFeatureModel();
         
         return $planFeatureModel->hasFeature(

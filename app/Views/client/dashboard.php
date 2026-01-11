@@ -1,23 +1,34 @@
 <h2 class="text-3xl font-bold text-gray-800 mb-6">Olá, <?php echo htmlspecialchars($user_name); ?>!</h2>
             
 <?php
-$subscriptionStatus = $subscription->status ?? null;
-$isActive = in_array(strtolower((string)$subscriptionStatus), ['active', 'trialing'], true);
+$subscriptionStatus = strtolower((string)($subscription->status ?? ''));
+$isActive = in_array($subscriptionStatus, ['active', 'trialing'], true);
+// Define a data de expiração priorizando o próximo vencimento
+$expiracao = !empty($subscription->proximo_vencimento) ? $subscription->proximo_vencimento : ($subscription->data_fim ?? null);
 ?>
 
 <div class="bg-white p-6 rounded-lg shadow-md mb-8 border-l-4 
     <?php echo $isActive ? 'border-green-500' : 'border-red-500'; ?>">
     <h3 class="text-xl font-semibold mb-2">Status da sua Assinatura</h3>
     
-    <?php if ($currentPlan): ?>
-        <p class="text-gray-700">Plano Atual: <span class="font-bold text-blue-600"><?php echo htmlspecialchars($currentPlan->nome); ?></span></p>
-        <p class="text-sm text-gray-500">
-            Status: <span class="uppercase font-semibold text-<?php echo (strtolower($subscription->status) === 'active') ? 'green' : 'yellow'; ?>-600"><?php echo htmlspecialchars($subscription->status); ?></span> 
-            | Fim: <?php echo date('d/m/Y', strtotime($subscription->data_fim)); ?>
-        </p>
+    <?php if ($isActive): ?>
+        <div class="mt-2 p-3 rounded <?php echo ($subscriptionStatus === 'trialing') ? 'bg-yellow-50 text-yellow-800' : 'bg-green-50 text-green-800'; ?>">
+            <p class="text-sm">
+                <strong>Status:</strong> 
+                <span class="uppercase font-bold">
+                    <?php echo ($subscriptionStatus === 'trialing') ? 'PERÍODO DE EXPERIÊNCIA' : 'PLANO ATIVO'; ?>
+                </span> 
+                <?php if ($expiracao): ?>
+                    <span class="mx-2">|</span> 
+                    <strong>Expira em:</strong> 
+                    <span class="font-semibold"><?php echo date('d/m/Y', strtotime($expiracao)); ?></span>
+                <?php endif; ?>
+            </p>
+        </div>
     <?php else: ?>
-        <p class="text-red-500 font-semibold">Nenhuma assinatura ativa encontrada.</p>
-        <p class="text-sm">Vá para a seção "Mudar Plano" para começar.</p>
+        <p class="text-red-500 font-semibold">Sua assinatura expirou ou não foi encontrada.</p>
+        <p class="text-sm mt-1">Para continuar criando e exportando documentos, regularize seu acesso.</p>
+        <a href="<?= BASE_URL ?>/plans" class="mt-3 inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">Ver Planos</a>
     <?php endif; ?>
 </div>
 

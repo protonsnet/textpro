@@ -22,6 +22,20 @@ class TemplateModel extends Model
         return $stmt->execute($data);
     }
 
+    public function find(int $id): object|false
+    {
+        $stmt = $this->db->prepare("
+            SELECT * FROM {$this->table}
+            WHERE id = :id
+            LIMIT 1
+        ");
+
+        $stmt->execute(['id' => $id]);
+
+        return $stmt->fetch(PDO::FETCH_OBJ) ?: false;
+    }
+
+
     public function findAll(): array
     {
         return $this->db
@@ -31,18 +45,52 @@ class TemplateModel extends Model
 
     public function updateTemplate(int $id, array $data): bool
     {
-        unset($data['id']);
+        // Colunas válidas da tabela templates
+        $allowedFields = [
+            'nome',
+            'tamanho_papel',
+            'largura_papel',
+            'altura_papel',
+            'margem_superior',
+            'margem_inferior',
+            'margem_esquerda',
+            'margem_direita',
+            'fonte_familia',
+            'fonte_tamanho',
+            'alinhamento',
+            'entre_linhas',
+            'cabecalho_html',
+            'rodape_html',
+            'posicao_numeracao',
+            'template_capa_html'
+        ];
+
+        // Remove qualquer campo inválido ou índice numérico
+        $filtered = array_intersect_key(
+            $data,
+            array_flip($allowedFields)
+        );
+
+        if (empty($filtered)) {
+            return false;
+        }
 
         $set = [];
-        foreach ($data as $key => $value) {
+        foreach ($filtered as $key => $value) {
             $set[] = "{$key} = :{$key}";
         }
 
-        $sql = "UPDATE {$this->table} SET " . implode(',', $set) . " WHERE id = :id";
-        $data['id'] = $id;
+        $sql = "
+            UPDATE {$this->table}
+            SET " . implode(', ', $set) . "
+            WHERE id = :id
+        ";
 
-        return $this->db->prepare($sql)->execute($data);
+        $filtered['id'] = $id;
+
+        return $this->db->prepare($sql)->execute($filtered);
     }
+
 
     public function deleteTemplate(int $id): bool
     {

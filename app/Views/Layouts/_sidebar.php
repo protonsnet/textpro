@@ -3,8 +3,10 @@
 use App\Services\FeatureService;
 use App\Models\SubscriptionModel;
 use App\Models\PlanModel;
+use App\Models\DocumentUsageModel;
+use App\Models\SystemUserModel;
 use App\Core\PermissionMiddleware;
-use App\Services\SubscriptionSyncService; // Adicionado o ; aqui
+use App\Services\SubscriptionSyncService; 
 
 /**
  * =========================
@@ -57,25 +59,41 @@ $plan         = null;
 $monthlyLimit = null;
 $currentUsage = 0;
 $limitReached = false;
+$hasActiveOrTrial = false;
 
 // Buscamos o status atualizado após o Sync
-$userStatus = (new \App\Models\SystemUserModel())->find($userId);
+$userStatus = (new SystemUserModel())->find($userId);
 $isSuspended = $userStatus->suspenso ?? false;
 
 if (!$isAdmin && $userId) {
     $subscriptionModel = new SubscriptionModel();
-    $planModel         = new PlanModel();
-
     $subscription = $subscriptionModel->findActiveSubscription($userId);
-    $plan         = $subscription ? $planModel->find($subscription->plan_id) : null;
-    $monthlyLimit = $plan->limite_documentos ?? null;
+    
+    // Verifica se o status é active ou trialing para ignorar a suspensão
+    if ($subscription) {
+        $status = strtolower($subscription->status);
+        if (in_array($status, ['active', 'trialing'])) {
+            $hasActiveOrTrial = true;
+        }
+        
+        if (!$isAdmin) {
+            $planModel = new PlanModel();
+            $plan = $planModel->find($subscription->plan_id);
+            $monthlyLimit = $plan->limite_documentos ?? null;
 
-    if ($monthlyLimit !== null) {
-        $usageModel   = new \App\Models\DocumentUsageModel();
-        $currentUsage = $usageModel->getUsage($userId, date('Y'), date('m'));
-        $limitReached = $currentUsage >= $monthlyLimit;
+            if ($monthlyLimit !== null) {
+                $usageModel   = new \App\Models\DocumentUsageModel();
+                $currentUsage = $usageModel->getUsage($userId, date('Y'), date('m'));
+                $limitReached = $currentUsage >= $monthlyLimit;
+            }
+        }
     }
 }
+$canCreate = $isAdmin || (
+    FeatureService::has('editor_access') && 
+    !$limitReached && 
+    (!$isSuspended || $hasActiveOrTrial)
+);
 ?>
 
 <aside class="sidebar bg-white shadow-md p-6 flex flex-col space-y-2 border-r">
@@ -103,7 +121,7 @@ if (!$isAdmin && $userId) {
         Alterar Senha
     </a>
 
-    <?php if ($isAdmin || (FeatureService::has('editor_access') && !$limitReached && !$isSuspended)): ?>
+    <?php if ($canCreate): ?>
         <a href="<?= BASE_URL ?>/editor"
            class="p-3 rounded-lg transition <?= active('/editor') ?>">
             Novo Documento
@@ -113,8 +131,10 @@ if (!$isAdmin && $userId) {
             <span>Novo Documento</span>
             <span class="text-xs">🔒</span>
         </div>
-        <?php if($isSuspended): ?>
+        <?php if($isSuspended && !$hasActiveOrTrial): ?>
             <p class="text-[10px] text-red-500 px-3 font-bold">Assinatura Suspensa</p>
+        <?php elseif($limitReached): ?>
+            <p class="text-[10px] text-orange-500 px-3 font-bold">Limite de Uso Atingido</p>
         <?php endif; ?>
     <?php endif; ?>
 
