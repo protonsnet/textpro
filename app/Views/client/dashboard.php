@@ -50,6 +50,11 @@ $expiracao = !empty($subscription->proximo_vencimento) ? $subscription->proximo_
                     <div class="space-x-3">
                         <a href="<?= BASE_URL ?>/editor/<?php echo $doc->id; ?>" class="text-blue-600 hover:underline">Editar</a>
                         <a href="<?= BASE_URL ?>/document/export/pdf/<?php echo $doc->id; ?>" target="_blank" class="text-red-600 hover:underline">Exportar PDF</a>
+                        <form action="<?= BASE_URL ?>/document/delete/<?php echo $doc->id; ?>" method="POST" class="inline-block ml-2" onsubmit="return confirm('Tem certeza que deseja excluir este documento?');">
+                            <button type="submit" class="text-gray-500 hover:text-red-600 transition-colors p-1" title="Excluir Documento">
+                                <i class="fa-solid fa-trash-can"></i>
+                                <span class="sr-only">Excluir</span> </button>
+                        </form>
                     </div>
                 </li>
             <?php endforeach; ?>

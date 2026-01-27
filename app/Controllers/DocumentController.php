@@ -112,54 +112,48 @@ class DocumentController extends Controller
     public function save(): void
     {
         PermissionMiddleware::check('documents.edit');
-
-        $userId  = (int) $_SESSION['user_id'];
-        $isAdmin = PermissionMiddleware::can('admin.documents.full');
-
-        if (!$isAdmin) {
-            $user = $this->userModel->find($userId);
-            $subscription = $this->subscriptionModel->findActiveSubscription($userId);
-            $hasAccess = $subscription && in_array(strtolower($subscription->status), ['active', 'trialing']);
-
-            if ($user && $user->suspenso && !$hasAccess) {
-                $_SESSION['error'] = "Sua conta possui pendências financeiras. Não é possível salvar.";
-                header("Location: " . BASE_URL . "/payments");
-                exit;
-            }
-        }
-
+        $userId = (int) $_SESSION['user_id'];
+        
+        // 1. Validação básica de campos obrigatórios
         $templateId = (int) ($_POST['template_id'] ?? 0);
         $titulo     = trim($_POST['titulo'] ?? '');
-        $html       = $_POST['conteudo_html'] ?? '';
 
         if ($templateId <= 0 || $titulo === '') {
-            $_SESSION['error'] = "Dados inválidos para salvar o documento.";
-            header("Location: " . BASE_URL . "/editor");
+            $_SESSION['error'] = "Título e Modelo são obrigatórios.";
+            $redirect = isset($_POST['id']) ? "/editor/{$_POST['id']}" : "/editor";
+            header("Location: " . BASE_URL . $redirect);
             exit;
         }
 
-        $html = $this->sanitizeEditorHtml($html);
-
+        // 2. Coleta de todos os dados do formulário
         $data = [
-            'id'              => $_POST['id'] ?? null,
-            'user_id'         => $userId,
-            'template_id'     => $templateId,
-            'titulo'          => trim($_POST['titulo'] ?? ''),
-            'subtitulo'        => trim($_POST['subtitulo'] ?? ''),
-            'autor'            => trim($_POST['autor'] ?? ''),
-            'instituicao'      => trim($_POST['instituicao'] ?? ''),
-            'local_publicacao' => trim($_POST['local_publicacao'] ?? ''),
-            'ano_publicacao'   => trim($_POST['ano_publicacao'] ?? ''),
-            'conteudo_html'   => $html,
+            'id'                => !empty($_POST['id']) ? (int)$_POST['id'] : null,
+            'user_id'           => $userId,
+            'template_id'       => $templateId,
+            'titulo'            => $titulo,
+            'subtitulo'         => trim($_POST['subtitulo'] ?? ''),
+            'autor'             => trim($_POST['autor'] ?? ''),
+            'instituicao'       => trim($_POST['instituicao'] ?? ''),
+            'local_publicacao'  => trim($_POST['local_publicacao'] ?? ''),
+            'ano_publicacao'    => trim($_POST['ano_publicacao'] ?? date('Y')),
+            'conteudo_json'     => $_POST['conteudo_json'] ?? null,
+            'conteudo_html'     => $_POST['conteudo_html'] ?? null, // Agora capturando o HTML para o PDF
+            'meta'              => json_encode([
+                'saved_at' => date('Y-m-d H:i:s'),
+                'ip'       => $_SERVER['REMOTE_ADDR']
+            ])
         ];
 
+        // 3. Persistência no Model
         $id = $this->documentModel->save($data);
 
-        if (!$data['id'] && !$isAdmin) {
-            UsageService::increment();
+        if ($id) {
+            $_SESSION['success'] = "Documento salvo com sucesso!";
+            header("Location: " . BASE_URL . "/editor/{$id}");
+        } else {
+            $_SESSION['error'] = "Erro ao salvar o documento.";
+            header("Location: " . BASE_URL . "/dashboard");
         }
-
-        header("Location: " . BASE_URL . "/editor/{$id}");
         exit;
     }
 
@@ -240,6 +234,33 @@ class DocumentController extends Controller
         $html = preg_replace('/style="[^"]*position\s*:\s*fixed[^"]*"/i', '', $html);
 
         return trim($html);
+    }
+
+    /**
+     * Exclui um documento
+     */
+    public function delete(int $id): void
+    {
+        PermissionMiddleware::check('documents.edit');
+        $userId = (int) $_SESSION['user_id'];
+
+        // Verifica se o documento pertence ao usuário (Segurança)
+        $document = $this->documentModel->findByIdAndUser($id, $userId);
+
+        if (!$document) {
+            $_SESSION['error'] = "Documento não encontrado ou permissão negada.";
+            header("Location: " . BASE_URL . "/dashboard");
+            exit;
+        }
+
+        if ($this->documentModel->delete($id)) {
+            $_SESSION['success'] = "Documento excluído com sucesso.";
+        } else {
+            $_SESSION['error'] = "Erro ao tentar excluir o documento.";
+        }
+
+        header("Location: " . BASE_URL . "/dashboard");
+        exit;
     }
 
 }

@@ -1,7 +1,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    
+    # Se o arquivo existir na pasta public, use-o
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f
+    RewriteRule ^(.*)$ public/$1 [L]
 
-    # Redireciona tudo para /public
-    RewriteCond %{REQUEST_URI} !^/textpro/public/
-    RewriteRule ^(.*)$ /textpro/public/$1 [L]
+    # Caso contrário, mande tudo para o index.php dentro de public
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
 </IfModule>

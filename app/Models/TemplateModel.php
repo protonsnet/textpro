@@ -108,4 +108,47 @@ class TemplateModel extends Model
             ->fetchColumn();
     }
 
+    public function buildEditorCss(object $template): string
+    {
+        return "
+            body {
+                font-family: '{$template->fonte_familia}', serif;
+                font-size: {$template->fonte_tamanho}pt;
+                line-height: {$template->entre_linhas};
+                text-align: {$template->alinhamento};
+                padding: {$template->margem_superior}cm
+                        {$template->margem_direita}cm
+                        {$template->margem_inferior}cm
+                        {$template->margem_esquerda}cm;
+            }
+
+            p {
+                text-indent: 1.25cm;
+                margin: 0;
+            }
+
+            h1, h2, h3 {
+                font-weight: bold;
+                margin-top: 1cm;
+                margin-bottom: 0.5cm;
+            }
+
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+        ";
+    }
+
+    public function getEditorCssById(int $id): string
+    {
+        $template = $this->find($id);
+
+        if (!$template) {
+            return '';
+        }
+
+        return $this->buildEditorCss($template);
+    }
+
 }

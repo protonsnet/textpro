@@ -59,4 +59,27 @@ class TemplateController extends Controller
             'altura_papel'     => (float) $template->altura_papel,
         ]);
     }
+
+    /**
+     * Retorna o CSS do template para uso no editor
+     *
+     * GET /template/{id}/editor-css
+     */
+    public function editorCss(int $id): void
+    {
+        PermissionMiddleware::check('documents.edit');
+
+        $css = $this->templateModel->getEditorCssById($id);
+
+        if ($css === '') {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo '/* Template não encontrado */';
+            return;
+        }
+
+        header('Content-Type: text/css; charset=utf-8');
+        echo $css;
+    }
+
 }

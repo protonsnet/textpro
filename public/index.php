@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 // BOOTSTRAP
 // =============================================================
 
-define('BASE_URL', '/textpro');
+define('BASE_URL', '');
 define('APP_ROOT', dirname(__DIR__));
 
 require_once APP_ROOT . '/vendor/autoload.php';
@@ -64,6 +64,8 @@ $router->get('/editor/{id}', 'DocumentController@openEditor');
 
 $router->post('/document/save', 'DocumentController@save');
 
+$router->post('/document/delete/{id}', 'DocumentController@delete');
+
 $router->get('/document/export/pdf/{id}', 'DocumentController@exportPdf');
 $router->get('/document/export/mp3/{id}', 'DocumentController@exportMp3');
 
@@ -75,8 +77,6 @@ $router->post('/profile/update', 'ProfileController@update');
 $router->get('/payments', 'PaymentController@index');
 $router->get('/template/{id}', 'TemplateController@show');
 $router->post('/upload/image', 'UploadController@image');
-
-
 
 
 // =============================================================

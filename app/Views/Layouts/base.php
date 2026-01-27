@@ -12,11 +12,13 @@
 
     <!-- Tailwind (dev) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        .sidebar {
-            min-width: 250px;
-        }
+        /* .sidebar {
+            width: 16rem;
+            min-width: auto;
+        } */
 
         /* Garante que o footer fique sempre no final */
         .flex-container {
@@ -39,7 +41,7 @@
             endif;
             ?>
 
-            <main class="flex-1 p-8 overflow-y-auto">
+            <main class="flex-1 p-8 overflow-y-auto min-w-0">
                 <?= $content ?>
             </main>
         </div>

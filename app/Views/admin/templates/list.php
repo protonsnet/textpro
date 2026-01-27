@@ -33,7 +33,9 @@
                             <a href="<?= BASE_URL ?>/admin/templates/edit/<?php echo $template->id; ?>" class="text-indigo-600 hover:text-indigo-900 mr-4">Editar</a>
                             
                             <form action="<?= BASE_URL ?>/admin/templates/delete/<?php echo $template->id; ?>" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir o template \'<?php echo htmlspecialchars($template->nome); ?>\'?');" class="inline">
-                                <button type="submit" class="text-red-600 hover:text-red-900">Excluir</button>
+                                <button type="submit" class="text-red-600 hover:text-red-900 ml-2" title="Excluir Template">
+                                    <i class="fa-solid fa-trash-can"></i> Excluir
+                                </button>
                             </form>
                         </td>
                     </tr>
