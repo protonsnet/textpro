@@ -1,7 +1,7 @@
 <html lang="pt-br"><head><meta charset="UTF-8"><title><?php echo $title ?? 'Login'; ?></title><script src="https://cdn.tailwindcss.com"></script></head><body>
 <div class="min-h-screen flex items-center justify-center bg-gray-100">
     <div class="max-w-md w-full p-8 space-y-6 bg-white rounded-xl shadow-lg">
-        <h2 class="text-3xl font-bold text-center text-gray-900">Login TextPro</h2>
+        <h2 class="text-3xl font-bold text-center text-gray-900">Login NexoWriter</h2>
         
         <?php if (isset($error)): ?>
             <div class="p-3 text-sm text-red-700 bg-red-100 rounded-lg"><?php echo $error; ?></div>

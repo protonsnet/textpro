@@ -1,7 +1,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title><?php echo $title ?? 'Cadastro - TextPro'; ?></title>
+    <title><?php echo $title ?? 'Cadastro - NexoWriter'; ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -9,7 +9,7 @@
 <div class="min-h-screen flex items-center justify-center p-4">
     <div class="max-w-md w-full p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
         <div class="text-center">
-            <h2 class="text-3xl font-bold text-gray-900">Cadastro TextPro</h2>
+            <h2 class="text-3xl font-bold text-gray-900">Cadastro NexoWriter</h2>
             <p class="text-gray-500 mt-2">Crie sua conta para começar</p>
         </div>
         

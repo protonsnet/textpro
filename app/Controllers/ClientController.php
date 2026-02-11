@@ -36,20 +36,19 @@ class ClientController extends Controller
     public function dashboard(): void
     {
         AuthMiddleware::check();
-
         $userId = $_SESSION['user_id'];
 
         SubscriptionSyncService::checkAndSync($userId);
 
-        $documents    = $this->documentModel->findByUser($userId);
+        // Buscamos todos os documentos
+        $documents = $this->documentModel->findByUser($userId);
+        
         $subscription = $this->subscriptionModel->findActiveSubscription($userId);
-        $currentPlan  = $subscription
-            ? $this->planModel->find($subscription->plan_id)
-            : null;
+        $currentPlan  = $subscription ? $this->planModel->find($subscription->plan_id) : null;
 
         $this->view('client/dashboard', [
-            'title'        => 'Dashboard TextPro',
-            'documents'    => $documents,
+            'title'        => 'Meus Documentos',
+            'documents'    => $documents, // Passamos a lista completa
             'subscription' => $subscription,
             'currentPlan'  => $currentPlan,
             'user_name'    => $_SESSION['user_nome'] ?? 'Cliente'
@@ -106,6 +105,26 @@ class ClientController extends Controller
 
         $_SESSION['success'] = "Senha alterada com sucesso!";
         header("Location: " . BASE_URL . "/profile/password");
+        exit;
+    }
+
+
+    public function rename()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = $_POST['id'] ?? null;
+            $novoTitulo = trim($_POST['titulo'] ?? '');
+            $userId = $_SESSION['user_id'];
+
+            if ($id && !empty($novoTitulo)) {
+                $db = \App\Core\Database::getInstance();
+                $stmt = $db->prepare("UPDATE documents SET titulo = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
+                $stmt->execute([$novoTitulo, $id, $userId]);
+            }
+        }
+        
+        // Redireciona de volta para onde o usuário estava
+        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? BASE_URL . "/dashboard"));
         exit;
     }
 }

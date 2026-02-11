@@ -68,6 +68,7 @@ $router->post('/document/delete/{id}', 'DocumentController@delete');
 
 $router->get('/document/export/pdf/{id}', 'DocumentController@exportPdf');
 $router->get('/document/export/mp3/{id}', 'DocumentController@exportMp3');
+$router->post('/document/rename', 'ClientController@rename');
 
 $router->get('/profile/password', 'ClientController@passwordForm');
 $router->post('/profile/password/update', 'ClientController@updatePassword');
@@ -77,6 +78,23 @@ $router->post('/profile/update', 'ProfileController@update');
 $router->get('/payments', 'PaymentController@index');
 $router->get('/template/{id}', 'TemplateController@show');
 $router->post('/upload/image', 'UploadController@image');
+
+// Editor Beta (OnlyOffice) - Documentos Word
+$router->get('/editor-beta/list', 'OnlyOfficeController@list');
+$router->post('/editor-beta/create', 'OnlyOfficeController@create'); 
+$router->get('/editor-beta/(\d+)', 'OnlyOfficeController@index');    
+
+// Editor Beta (OnlyOffice) - Planilhas Excel
+$router->get('/editor-beta/list-xlsx', 'OnlyOfficeController@listXlsx');
+$router->post('/editor-beta/create-xlsx', 'OnlyOfficeController@createXlsx');
+$router->get('/editor-beta/spreadsheet/(\d+)', 'OnlyOfficeController@spreadsheet');
+
+// Editor Beta (OnlyOffice) - Apresentações PowerPoint
+$router->post('/editor-beta/create-pptx', 'OnlyOfficeController@createPptx');
+$router->get('/editor-beta/presentation/(\d+)', 'OnlyOfficeController@presentation');
+
+// Callback unificado (o OnlyOffice envia o status para cá independente do tipo)
+$router->post('/editor-beta/callback', 'OnlyOfficeController@callback');
 
 
 // =============================================================
@@ -103,6 +121,8 @@ $router->post('/admin/roles/edit/{id}', 'AdminRoleController@update');
 
 // ---------------- PERMISSÕES ----------------
 $router->get('/admin/permissions', 'AdminPermissionController@index');
+$router->post('/admin/permissions/store', 'AdminPermissionController@store');
+$router->get('/admin/permissions/delete/{id}', 'AdminPermissionController@delete');
 
 // ---------------- USUÁRIOS → ROLES ----------------
 $router->get('/admin/users/roles/{id}', 'AdminUserRoleController@editForm');

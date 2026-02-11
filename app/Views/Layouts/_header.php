@@ -14,7 +14,7 @@
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
             
             <div class="text-2xl font-bold text-blue-600">
-                <a href="<?= BASE_URL ?>/">TextPro</a>
+                <a href="<?= BASE_URL ?>/">NexoWriter</a>
             </div>
 
             <nav class="space-x-4 flex items-center">

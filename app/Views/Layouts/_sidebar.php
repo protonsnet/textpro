@@ -7,6 +7,7 @@ use App\Models\DocumentUsageModel;
 use App\Models\SystemUserModel;
 use App\Core\PermissionMiddleware;
 use App\Services\SubscriptionSyncService; 
+use App\Controllers\OnlyOfficeController;
 
 /**
  * =========================
@@ -94,11 +95,14 @@ $canCreate = $isAdmin || (
     !$limitReached && 
     (!$isSuspended || $hasActiveOrTrial)
 );
+
+// Verifica se estamos na página de qualquer um dos editores para colapsar a sidebar
+$isEditorPage = str_contains($_SERVER['REQUEST_URI'], '/editor') || str_contains($_SERVER['REQUEST_URI'], '/editor-beta');
 ?>
 
 <aside
     id="sidebar"
-    class="sidebar bg-white shadow-md border-r flex flex-col transition-all duration-300 w-64 overflow-hidden"
+    class="sidebar bg-white shadow-md border-r flex flex-col transition-all duration-300 overflow-hidden <?= $isEditorPage ? 'sidebar-collapsed w-20' : 'w-64' ?>"
 >
     <div class="flex items-center justify-between p-4 mb-2">
         <h3 class="sidebar-text text-lg font-semibold text-gray-700 whitespace-nowrap">
@@ -134,7 +138,7 @@ $canCreate = $isAdmin || (
         </a>
 
         <?php if ($canCreate): ?>
-            <a href="<?= BASE_URL ?>/editor" class="sidebar-link flex items-center p-3 rounded-lg transition <?= active('/editor') ?>" title="Novo Documento">
+            <a href="<?= BASE_URL ?>/editor" class="flex items-center p-3 rounded-lg transition" title="Novo Documento" target="_blank">
                 <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 <span class="sidebar-text ml-3 whitespace-nowrap">Novo Documento</span>
             </a>
@@ -151,6 +155,49 @@ $canCreate = $isAdmin || (
                 </div>
             </div>
         <?php endif; ?>
+
+        <?php if ($canCreate): ?>
+            <a href="javascript:void(0)" 
+                onclick="window.location.pathname.includes('dashboard') ? openModalCreate() : window.location.href='<?= BASE_URL ?>/dashboard?openModalWord=1'" 
+                class="flex items-center p-3 rounded-lg transition text-purple-600 hover:bg-purple-50" 
+                title="Editor Beta (Word Online)">
+                <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3v5h5M16 13H8m8 4H8m2-8H8"/>
+                </svg>
+                <span class="sidebar-text ml-3 whitespace-nowrap font-bold">Documento</span>
+            </a>
+
+            <a href="javascript:void(0)" 
+                onclick="window.location.pathname.includes('dashboard') ? openModalCreate('excel') : window.location.href='<?= BASE_URL ?>/dashboard?openModalExcel=1'" 
+                class="flex items-center p-3 rounded-lg transition text-green-600 hover:bg-green-50" 
+                title="Nova Planilha Online">
+                <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 2v-6m0 10v2m0-2h-6m6 0h2m-2 0H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2h-1z"/>
+                </svg>
+                <span class="sidebar-text ml-3 whitespace-nowrap font-bold">Planilha</span>
+            </a>
+            <a href="javascript:void(0)" 
+                onclick="window.location.pathname.includes('dashboard') ? openModalCreate('slide') : window.location.href='<?= BASE_URL ?>/dashboard?openModalSlide=1'" 
+                class="flex items-center p-3 rounded-lg transition text-orange-600 hover:bg-orange-50" 
+                title="Nova Apresentação Online">
+                <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                </svg>
+                <span class="sidebar-text ml-3 whitespace-nowrap font-bold">Apresentação</span>
+            </a>
+        <?php else: ?>
+            <div class="sidebar-link p-3 rounded-lg text-gray-300 cursor-not-allowed flex items-center" title="Limite de documentos atingido">
+                <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <span class="sidebar-text ml-3 whitespace-nowrap">Editor Avançado</span>
+            </div>
+        <?php endif; ?>
+        <a href="<?= BASE_URL ?>/editor-beta/list" class="sidebar-link flex items-center p-3 rounded-lg transition <?= active('/editor-beta/list') ?>" title="Arquivos">>
+            <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+            <span class="sidebar-text ml-3 whitespace-nowrap">Listar Arquivos</span>
+        </a>
 
         <a href="<?= BASE_URL ?>/plans" class="sidebar-link flex items-center p-3 rounded-lg transition <?= active('/plans') ?>" title="Planos">
             <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z"/></svg>
@@ -192,7 +239,7 @@ $canCreate = $isAdmin || (
             <?php if (PermissionMiddleware::can('admin.dashboard')): ?>
                 <a href="<?= BASE_URL ?>/admin/payments" class="sidebar-link flex items-center p-3 rounded-lg transition <?= activeAdmin('/admin/payments') ?>" title="Financeiro">
                     <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <span class="sidebar-text ml-3 whitespace-nowrap">Financeiro (Asaas)</span>
+                    <span class="sidebar-text ml-3 whitespace-nowrap">Financeiro</span>
                 </a>
             <?php endif; ?>
 
@@ -214,6 +261,14 @@ $canCreate = $isAdmin || (
                 <a href="<?= BASE_URL ?>/admin/templates" class="sidebar-link flex items-center p-3 rounded-lg transition <?= activeAdmin('/admin/templates') ?>" title="Templates Admin">
                     <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
                     <span class="sidebar-text ml-3 whitespace-nowrap">Templates</span>
+                </a>
+            <?php endif; ?>
+            <?php if (PermissionMiddleware::can('permissions.view')): ?>
+                <a href="<?= BASE_URL ?>/admin/permissions" class="sidebar-link flex items-center p-3 rounded-lg transition <?= activeAdmin('/admin/permissions') ?>" title="Permissões">
+                    <svg class="h-5 w-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <span class="sidebar-text ml-3 whitespace-nowrap">Permissões</span>
                 </a>
             <?php endif; ?>
         <?php endif; ?>
@@ -247,7 +302,7 @@ $canCreate = $isAdmin || (
     .sidebar-collapsed .flex.items-center.justify-between {
         justify-content: center;
         padding: 1rem 0;
-    }
+    } 
 </style>
 
 <script>
@@ -255,17 +310,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('toggleSidebar');
     const collapsedClass = 'sidebar-collapsed';
+    
+    // Passamos a variável do PHP para o JS
+    const isEditorPage = <?= json_encode($isEditorPage) ?>;
 
-    // Aplica estado inicial sem animação para evitar "salto" visual
-    if (localStorage.getItem('sidebar') === 'collapsed') {
+    // Lógica de estado inicial
+    if (isEditorPage) {
+        // Se for editor, sempre começa colapsado
+        sidebar.classList.add(collapsedClass);
+    } else if (localStorage.getItem('sidebar') === 'collapsed') {
+        // Se não for editor, respeita a escolha do usuário salva
         sidebar.classList.add(collapsedClass);
     }
 
     toggle.addEventListener('click', () => {
         sidebar.classList.toggle(collapsedClass);
-        localStorage.setItem('sidebar', 
-            sidebar.classList.contains(collapsedClass) ? 'collapsed' : 'expanded'
-        );
+        
+        // Só salvamos a preferência do usuário se NÃO estivermos no editor
+        // para que a escolha dele em outras páginas não "estrague" a regra do editor
+        if (!isEditorPage) {
+            localStorage.setItem('sidebar', 
+                sidebar.classList.contains(collapsedClass) ? 'collapsed' : 'expanded'
+            );
+        }
     });
 });
 </script>

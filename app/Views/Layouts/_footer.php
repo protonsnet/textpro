@@ -2,7 +2,7 @@
     <div class="container mx-auto flex flex-col md:flex-row justify-between items-center text-sm">
 
         <p class="mb-3 md:mb-0">
-            &copy; <?= date('Y') ?> TextPro. Todos os direitos reservados.
+            &copy; <?= date('Y') ?> NexoWriter. Todos os direitos reservados.
         </p>
 
         <div class="space-x-4">

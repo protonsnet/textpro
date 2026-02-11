@@ -3,6 +3,7 @@
 namespace App\Core;
 
 use App\Models\SubscriptionModel;
+use App\Models\PermissionModel;
 
 class AuthMiddleware
 {
@@ -55,7 +56,7 @@ class AuthMiddleware
 
         $userId = (int) $_SESSION['user_id'];
 
-        $permissionModel = new \App\Models\PermissionModel();
+        $permissionModel = new PermissionModel();
         $permissions = $permissionModel->getPermissionsByUser($userId);
 
         $_SESSION['permissions'] = $permissions;
