@@ -13,7 +13,7 @@ class HomeController extends Controller
         $planos = $planModel->allActive();
 
         $this->viewPublic('home/index', [
-            'title'  => 'TextPro — Documentos ABNT',
+            'title'  => 'NexoWriter - Editor de Documentos Online',
             'planos' => $planos
         ]);
     }

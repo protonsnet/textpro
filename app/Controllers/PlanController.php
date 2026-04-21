@@ -26,7 +26,7 @@ class PlanController extends Controller
         $planos = $this->planModel->allActive();
 
         $this->view('plans/list', [
-            'title'  => 'Nossos Planos TextPro',
+            'title'  => 'Nossos Planos NexoWriter',
             'planos' => $planos
         ]);
     }

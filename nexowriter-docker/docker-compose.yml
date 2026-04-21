@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # A aplicação PHP
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: nexowriter_app
+    ports:
+      - "8083:80"
+    volumes:
+      - /home/nexowriter/public_html:/var/www/html
+    restart: always
+    networks:
+      - nexo_network
+    extra_hosts:
+      - "nexowriter.com:172.20.0.1" # Para que o PHP saiba falar com o host se necessário
+
+  # O Document Server
+  onlyoffice:
+    image: onlyoffice/documentserver
+    container_name: onlyoffice
+    restart: always
+    ports:
+      - "8082:80"
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET=hQ5llgVzCIkpV01EA7DbU7KOln4nU5hT
+    # CRUCIAL: Faz o OnlyOffice enxergar o domínio apontando para o IP do Docker
+    extra_hosts:
+      - "nexowriter.com:172.20.0.1"
+      - "office.nexowriter.com:172.20.0.1"
+    networks:
+      - nexo_network
+
+networks:
+  nexo_network:
+    driver: bridge

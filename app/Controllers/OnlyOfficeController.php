@@ -40,19 +40,30 @@ class OnlyOfficeController extends Controller
         $db = Database::getInstance();
         $userId = $_SESSION['user_id'];
 
-        $stmt = $db->prepare("SELECT * FROM documents WHERE id = ? AND user_id = ?");
-        $stmt->execute([$id, $userId]);
+        $stmt = $db->prepare("
+            SELECT d.*, ds.can_edit as shared_edit 
+            FROM documents d
+            LEFT JOIN document_shares ds ON d.id = ds.document_id AND ds.user_id = ?
+            WHERE d.id = ? AND (d.user_id = ? OR ds.user_id = ?)
+        ");
+        // $stmt->execute([$id, $userId]);
+        $stmt->execute([$userId, $id, $userId, $userId]);
         $doc = $stmt->fetch();
 
         if (!$doc) {
             die("Documento não encontrado no banco de dados.");
         }
+        
+        $canEdit = ($doc->user_id == $userId) || ($doc->shared_edit == 1);
 
-        $meuIpMac = "192.168.0.102";
+        // $meuIpMac = "192.168.0.102";
         // Se o file_path estiver vazio no banco por algum motivo, usa o default
-        $fileUrl = "http://{$meuIpMac}:8080" . ($doc->file_path ?? "/storage/documentos/default.docx");
+        // $fileUrl = "http://{$meuIpMac}:8080" . ($doc->file_path ?? "/storage/documentos/default.docx");
         // Produção
-        // $fileUrl = BASE_URL . ($doc->file_path ?? "/storage/documentos/default.docx");
+        $baseUrl = "https://nexowriter.com"; 
+    
+        $fileUrl = $baseUrl . ($doc->file_path ?? "/public/storage/documentos/default.docx");
+        $callbackUrl = $baseUrl . "/editor-beta/callback";
         
         $config = [
             "document" => [
@@ -65,7 +76,7 @@ class OnlyOfficeController extends Controller
             ],
             "documentType" => "word",
             "editorConfig" => [
-                "callbackUrl" => "http://{$meuIpMac}:8080/editor-beta/callback",
+                "callbackUrl" => $callbackUrl,
                 // Produção
                 // "callbackUrl" => BASE_URL . "/editor-beta/callback",
                 "lang" => "pt-BR",
@@ -82,225 +93,99 @@ class OnlyOfficeController extends Controller
             "width" => "100%"
         ];
 
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        header("Pragma: no-cache");
+
         $config['token'] = $this->generateToken($config);
 
         return $this->view('editor-beta/index', [
             'config' => json_encode($config),
             'no_sidebar' => true, // Isso remove Header, Sidebar e Footer no seu base.php
             'title' => 'Editando: ' . $doc->titulo
-        ]);
+        ], false);
     }
 
     public function callback()
     {
+        if (ob_get_length()) ob_clean();
         $body = file_get_contents('php://input');
         $data = json_decode($body, true);
+
+        $logPath = $_SERVER['DOCUMENT_ROOT'] . "/public/storage/documentos/debug_log.txt";
         
-        if (isset($data['status'])) {
-            if ($data['status'] == 2 || $data['status'] == 6) {
-                $downloadUrl = $data['url'];
-                $parts = explode('_', $data['key']);
-                $prefix = $parts[0]; 
-                $documentId = $parts[1];
+        // Log inicial de entrada
+        $status = $data['status'] ?? 'N/A';
+        // file_put_contents($logPath, "\n--- NOVA REQUISIÇÃO " . date('Y-m-d H:i:s') . " ---\n", FILE_APPEND);
+        // file_put_contents($logPath, "Status: $status\n", FILE_APPEND);
 
-                if ($documentId) {
-                    $ext = 'docx';
-                    $filePrefix = 'doc_';
+        if (isset($data['status']) && ($data['status'] == 2 || $data['status'] == 6)) {
+            $parts = explode('_', $data['key']);
+            $documentId = $parts[1] ?? null;
+
+            if ($documentId) {
+                $db = Database::getInstance();
+                $stmt = $db->prepare("SELECT file_path FROM documents WHERE id = ?");
+                $stmt->execute([$documentId]);
+                $doc = $stmt->fetch();
+
+                if ($doc) {
+                    $downloadUrl = $data['url'];
+                    $savePath = $_SERVER['DOCUMENT_ROOT'] . $doc->file_path;
+
+                    // file_put_contents($logPath, "Download URL: $downloadUrl\n", FILE_APPEND);
+                    // file_put_contents($logPath, "Destino Local: $savePath\n", FILE_APPEND);
+
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $downloadUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                    curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
                     
-                    if ($prefix === 'XLS') { $ext = 'xlsx'; $filePrefix = 'spreadsheet_'; }
-                    if ($prefix === 'PPT') { $ext = 'pptx'; $filePrefix = 'presentation_'; }
+                    // Ativa a captura dos headers para ver o que o servidor do OnlyOffice responde
+                    curl_setopt($ch, CURLOPT_HEADER, true); 
 
-                    $newData = file_get_contents($downloadUrl);
-                    $relativeDir = "/storage/documentos/";
-                    $fileName = $filePrefix . $documentId . "." . $ext;
+                    $response = curl_exec($ch);
+                    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                    $header = substr($response, 0, $headerSize);
+                    $newData = substr($response, $headerSize);
                     
-                    // AJUSTE AQUI: Usando DOCUMENT_ROOT para garantir o caminho na Hostinger
-                    $savePath = $_SERVER['DOCUMENT_ROOT'] . $relativeDir . $fileName;
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curlError = curl_error($ch);
+                    curl_close($ch);
 
-                    // Garante que a pasta existe antes de salvar
-                    if (!is_dir(dirname($savePath))) {
-                        mkdir(dirname($savePath), 0775, true);
-                    }
+                    // file_put_contents($logPath, "HTTP Code: $httpCode\n", FILE_APPEND);
+                    // file_put_contents($logPath, "Headers da VPS:\n$header\n", FILE_APPEND);
 
-                    if (file_put_contents($savePath, $newData)) {
-                        $db = Database::getInstance();
-                        $stmt = $db->prepare("UPDATE documents SET file_path = ?, updated_at = NOW() WHERE id = ?");
-                        $stmt->execute([$relativeDir . $fileName, $documentId]);
+                    if ($newData !== false && $httpCode == 200 && strlen($newData) > 100) {
+                        if (file_exists($savePath)) @unlink($savePath);
+                        if (file_put_contents($savePath, $newData)) {
+                            chmod($savePath, 0666);
+                            if ($data['status'] == 2) {
+                                $db->prepare("UPDATE documents SET updated_at = NOW() WHERE id = ?")->execute([$documentId]);
+                                // file_put_contents($logPath, "RESULTADO: Sucesso ao gravar doc_$documentId\n", FILE_APPEND);
+                            }
+                        }
+                    } else {
+                        file_put_contents($logPath, "RESULTADO: Falha. Tamanho dados: " . strlen($newData) . " bytes. Erro cURL: $curlError\n", FILE_APPEND);
                     }
                 }
             }
         }
+
         header("Content-Type: application/json");
-        die(json_encode(["error" => 0]));
-    }
-
-    // public function callback()
-    // {
-    //     header('Content-Type: application/json');
-
-    //     // =====================================================
-    //     // 1. Ler corpo do callback
-    //     // =====================================================
-    //     $body = file_get_contents('php://input');
-
-    //     // Log bruto (fundamental para debug)
-    //     file_put_contents(
-    //         APP_ROOT . '/storage/logs/onlyoffice_callback.log',
-    //         date('Y-m-d H:i:s') . PHP_EOL . $body . PHP_EOL . PHP_EOL,
-    //         FILE_APPEND
-    //     );
-
-    //     if (!$body) {
-    //         return $this->response(0);
-    //     }
-
-    //     $data = json_decode($body, true);
-
-    //     if (!is_array($data) || !isset($data['status'])) {
-    //         return $this->response(0);
-    //     }
-
-    //     /**
-    //      * Status importantes:
-    //      * 2 = Documento pronto para salvar
-    //      * 6 = Documento fechado com alterações
-    //      */
-    //     if (!in_array($data['status'], [2, 6], true)) {
-    //         return $this->response(0);
-    //     }
-
-    //     if (empty($data['url']) || empty($data['key'])) {
-    //         return $this->response(0);
-    //     }
-
-    //     // =====================================================
-    //     // 2. Resolver ID e tipo pelo "key"
-    //     // Exemplo: DOC_15 | XLS_22 | PPT_9
-    //     // =====================================================
-    //     [$prefix, $documentId] = explode('_', $data['key']) + [null, null];
-
-    //     if (!$documentId) {
-    //         return $this->response(0);
-    //     }
-
-    //     // =====================================================
-    //     // 3. Definir extensão e prefixo de arquivo
-    //     // =====================================================
-    //     $ext = 'docx';
-    //     $filePrefix = 'doc_';
-
-    //     if ($prefix === 'XLS') {
-    //         $ext = 'xlsx';
-    //         $filePrefix = 'spreadsheet_';
-    //     } elseif ($prefix === 'PPT') {
-    //         $ext = 'pptx';
-    //         $filePrefix = 'presentation_';
-    //     }
-
-    //     // =====================================================
-    //     // 4. Baixar arquivo do OnlyOffice
-    //     // =====================================================
-    //     $fileContent = @file_get_contents($data['url']);
-
-    //     if ($fileContent === false) {
-    //         return $this->response(0);
-    //     }
-
-    //     // =====================================================
-    //     // 5. Salvar no storage público
-    //     // =====================================================
-    //     $relativeDir = '/storage/documentos/';
-    //     $fileName = $filePrefix . $documentId . '.' . $ext;
-    //     $savePath = APP_ROOT . '/public' . $relativeDir . $fileName;
-
-    //     if (!is_dir(dirname($savePath))) {
-    //         mkdir(dirname($savePath), 0775, true);
-    //     }
-
-    //     if (!file_put_contents($savePath, $fileContent)) {
-    //         return $this->response(0);
-    //     }
-
-    //     // =====================================================
-    //     // 6. Atualizar banco
-    //     // =====================================================
-    //     $db = Database::getInstance();
-    //     $stmt = $db->prepare(
-    //         "UPDATE documents 
-    //          SET file_path = ?, updated_at = NOW() 
-    //          WHERE id = ?"
-    //     );
-    //     $stmt->execute([$relativeDir . $fileName, $documentId]);
-
-    //     // =====================================================
-    //     // 7. Resposta obrigatória para o OnlyOffice
-    //     // =====================================================
-    //     return $this->response(0);
-    // }
-
-    // private function response(int $error)
-    // {
-    //     echo json_encode(['error' => $error]);
-    //     exit;
-    // }
-    
-    public function create() 
-    {
-        AuthMiddleware::check();
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . BASE_URL . "/dashboard");
-            exit;
-        }
-
-        $db = Database::getInstance();
-        $userId = $_SESSION['user_id'];
-        
-        // Captura o título e remove espaços extras
-        $titulo = isset($_POST['titulo']) ? trim($_POST['titulo']) : '';
-        
-        // Se o título estiver vazio após o trim, aí sim usa o padrão
-        if (empty($titulo)) {
-            $titulo = 'Novo Documento ' . date('d/m H:i');
-        }
-
-        $stmt = $db->prepare("INSERT INTO documents (user_id, titulo, template_id, created_at, updated_at) VALUES (?, ?, NULL, NOW(), NOW())");
-        $stmt->execute([$userId, $titulo]);
-        
-        $id = $db->lastInsertId();
-
-        $fileName = "doc_{$id}.docx";
-        $relativeFilePath = "/storage/documentos/" . $fileName;
-        
-        // AJUSTE AQUI: Caminho absoluto Hostinger
-        $absoluteFilePath = $_SERVER['DOCUMENT_ROOT'] . $relativeFilePath;
-        $storageDir = $_SERVER['DOCUMENT_ROOT'] . "/storage/documentos/";
-
-        if (!is_dir($storageDir)) {
-            mkdir($storageDir, 0775, true);
-        }
-
-        $defaultDoc = $storageDir . "default.docx";
-        
-        if (!file_exists($defaultDoc)) {
-            $this->createDefaultDocIfNotExists($defaultDoc);
-        }
-
-        copy($defaultDoc, $absoluteFilePath);
-
-        if (!copy($defaultDoc, $absoluteFilePath)) {
-            die("Erro crítico: Não foi possível copiar o arquivo para $absoluteFilePath. Verifique permissões da pasta.");
-        }
-
-        if (!file_exists($absoluteFilePath)) {
-            die("Erro: O arquivo deveria existir em $absoluteFilePath, mas não foi encontrado.");
-        }
-
-        $db->prepare("UPDATE documents SET file_path = ? WHERE id = ?")
-        ->execute([$relativeFilePath, $id]);
-
-        header("Location: " . BASE_URL . "/editor-beta/" . $id);
+        echo json_encode(["error" => 0]);
         exit;
     }
+
+    private function response(int $error)
+    {
+        echo json_encode(['error' => $error]);
+        exit;
+    }
+    
 
     private function createDefaultDocIfNotExists($path) {
         if (file_exists($path)) return true;
@@ -386,11 +271,15 @@ class OnlyOfficeController extends Controller
         }
 
         // Use o IP da sua máquina para que o Docker consiga "enxergar" o servidor PHP
-        $meuIp = "192.168.0.102";
-        $porta = "8080";
+        // $meuIp = "192.168.0.102";
+        // $porta = "8080";
         
-        // CORREÇÃO DA URL: Removida a concatenação duplicada
-        $fileUrl = "http://{$meuIp}:{$porta}" . ($doc->file_path ?? "/storage/documentos/default.xlsx");
+        // // CORREÇÃO DA URL: Removida a concatenação duplicada
+        // $fileUrl = "http://{$meuIp}:{$porta}" . ($doc->file_path ?? "/storage/documentos/default.xlsx");
+        $baseUrl = "https://nexowriter.com"; 
+    
+        $fileUrl = $baseUrl . ($doc->file_path ?? "/public/storage/documentos/default.xlsx");
+        $callbackUrl = $baseUrl . "/editor-beta/callback";
         
         $config = [
             "document" => [
@@ -398,12 +287,12 @@ class OnlyOfficeController extends Controller
                 // A KEY deve ser única. Se mudar o arquivo, mude a key para forçar reload
                 "key" => "XLS_" . $doc->id . "_" . strtotime($doc->updated_at),
                 "title" => $doc->titulo,
-                "url" => $fileUrl ,
+                "url" => $fileUrl,
                 "permissions" => [ "edit" => true, "download" => true ]
             ],
             "documentType" => "cell", 
             "editorConfig" => [
-                "callbackUrl" => "http://{$meuIp}:{$porta}/editor-beta/callback",
+                "callbackUrl" => $callbackUrl,
                 "lang" => "pt-BR",
                 "user" => [
                     "id" => (string)$userId,
@@ -427,52 +316,6 @@ class OnlyOfficeController extends Controller
         ]);
     }
 
-    public function createXlsx() 
-    {
-        AuthMiddleware::check();
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . BASE_URL . "/dashboard");
-            exit;
-        }
-
-        $db = Database::getInstance();
-        $userId = $_SESSION['user_id'];
-        $titulo = isset($_POST['titulo']) ? trim($_POST['titulo']) : '';
-        
-        if (empty($titulo)) {
-            $titulo = 'Nova Planilha ' . date('d/m H:i');
-        }
-
-        $stmt = $db->prepare("INSERT INTO documents (user_id, titulo, template_id, created_at, updated_at) VALUES (?, ?, NULL, NOW(), NOW())");
-        $stmt->execute([$userId, $titulo]);
-        
-        $id = $db->lastInsertId();
-
-        $fileName = "spreadsheet_{$id}.xlsx"; 
-        $relativeFilePath = "/storage/documentos/" . $fileName;
-
-        // AJUSTE PARA HOSTINGER
-        $absoluteFilePath = $_SERVER['DOCUMENT_ROOT'] . $relativeFilePath;
-        $defaultXlsx = $_SERVER['DOCUMENT_ROOT'] . "/storage/documentos/default.xlsx";
-
-        if (!is_dir(dirname($absoluteFilePath))) {
-            mkdir(dirname($absoluteFilePath), 0775, true);
-        }
-        
-        if (!file_exists($defaultXlsx)) {
-            $this->createDefaultXlsxIfNotExists($defaultXlsx); // Certifique-se que esta função cria um XLSX real
-        }
-
-        copy($defaultXlsx, $absoluteFilePath);
-
-        $db->prepare("UPDATE documents SET file_path = ? WHERE id = ?")
-        ->execute([$relativeFilePath, $id]);
-        
-        // Redireciona para a rota de planilha
-        header("Location: " . BASE_URL . "/editor-beta/spreadsheet/" . $id);
-        exit;
-    }
-
     /**
      * Abre o editor de apresentações (PowerPoint)
      */
@@ -489,10 +332,14 @@ class OnlyOfficeController extends Controller
             die("Apresentação não encontrada.");
         }
 
-        $meuIp = "192.168.0.102";
-        $porta = "8080";
+        // $meuIp = "192.168.0.102";
+        // $porta = "8080";
         
-        $fileUrl = "http://{$meuIp}:{$porta}" . ($doc->file_path ?? "/storage/documentos/default.pptx");
+        // $fileUrl = "http://{$meuIp}:{$porta}" . ($doc->file_path ?? "/storage/documentos/default.pptx");
+        $baseUrl = "https://nexowriter.com"; 
+    
+        $fileUrl = $baseUrl . ($doc->file_path ?? "/public/storage/documentos/default.pptx");
+        $callbackUrl = $baseUrl . "/editor-beta/callback";
         
         $config = [
             "document" => [
@@ -504,7 +351,7 @@ class OnlyOfficeController extends Controller
             ],
             "documentType" => "slide", // Tipo específico para OnlyOffice Slides
             "editorConfig" => [
-                "callbackUrl" => "http://{$meuIp}:{$porta}/editor-beta/callback",
+                "callbackUrl" => $callbackUrl,
                 "lang" => "pt-BR",
                 "user" => [
                     "id" => (string)$userId,
@@ -525,51 +372,6 @@ class OnlyOfficeController extends Controller
         ]);
     }
 
-    /**
-     * Cria um novo arquivo de Slide (PPTX)
-     */
-    public function createPptx() 
-    {
-        AuthMiddleware::check();
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . BASE_URL . "/dashboard");
-            exit;
-        }
-
-        $db = Database::getInstance();
-        $userId = $_SESSION['user_id'];
-        $titulo = isset($_POST['titulo']) ? trim($_POST['titulo']) : '';
-        
-        if (empty($titulo)) {
-            $titulo = 'Nova Apresentação ' . date('d/m H:i');
-        }
-
-        $stmt = $db->prepare("INSERT INTO documents (user_id, titulo, template_id, created_at, updated_at) VALUES (?, ?, NULL, NOW(), NOW())");
-        $stmt->execute([$userId, $titulo]);
-        
-        $id = $db->lastInsertId();
-
-        $fileName = "presentation_{$id}.pptx"; 
-        $relativeFilePath = "/storage/documentos/" . $fileName;
-        $absoluteFilePath = $_SERVER['DOCUMENT_ROOT'] . $relativeFilePath;
-        $defaultPptx = $_SERVER['DOCUMENT_ROOT'] . "/storage/documentos/default.xlsx";
-
-        if (!is_dir(dirname($absoluteFilePath))) {
-            mkdir(dirname($absoluteFilePath), 0775, true);
-        }
-        
-        if (!file_exists($defaultPptx)) {
-            $this->createDefaultPptxIfNotExists($defaultPptx);
-        }
-
-        copy($defaultPptx, $absoluteFilePath);
-
-        $db->prepare("UPDATE documents SET file_path = ? WHERE id = ?")
-        ->execute([$relativeFilePath, $id]);
-        
-        header("Location: " . BASE_URL . "/editor-beta/presentation/" . $id);
-        exit;
-    }
 
     /**
      * Gera um arquivo PPTX em branco (Base64)
@@ -581,5 +383,163 @@ class OnlyOfficeController extends Controller
         return file_put_contents($path, $emptyPptx) !== false;
     }
     
+    // --- MÉTODO CREATE (DOCX) ---
+    public function create() 
+    {
+        AuthMiddleware::check();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . BASE_URL . "/dashboard");
+            exit;
+        }
+    
+        $db = Database::getInstance();
+        $userId = $_SESSION['user_id'];
+        $titulo = !empty(trim($_POST['titulo'])) ? trim($_POST['titulo']) : 'Novo Documento ' . date('d/m H:i');
+    
+        $db->prepare("INSERT INTO documents (user_id, titulo, created_at, updated_at) VALUES (?, ?, NOW(), NOW())")->execute([$userId, $titulo]);
+        $id = $db->lastInsertId();
+    
+        $fileName = "doc_{$id}.docx";
+        $this->setupFile($id, $fileName, 'docx');
+    
+        header("Location: " . BASE_URL . "/editor-beta/" . $id);
+        exit;
+    }
+    
+    // --- MÉTODO CREATE XLSX ---
+    public function createXlsx() 
+    {
+        AuthMiddleware::check();
+        $db = Database::getInstance();
+        $userId = $_SESSION['user_id'];
+        $titulo = !empty(trim($_POST['titulo'])) ? trim($_POST['titulo']) : 'Nova Planilha ' . date('d/m H:i');
+    
+        $db->prepare("INSERT INTO documents (user_id, titulo, created_at, updated_at) VALUES (?, ?, NOW(), NOW())")->execute([$userId, $titulo]);
+        $id = $db->lastInsertId();
+    
+        $fileName = "spreadsheet_{$id}.xlsx";
+        $this->setupFile($id, $fileName, 'xlsx');
+    
+        header("Location: " . BASE_URL . "/editor-beta/spreadsheet/" . $id);
+        exit;
+    }
+    
+    // --- MÉTODO CREATE PPTX ---
+    public function createPptx() 
+    {
+        AuthMiddleware::check();
+        $db = Database::getInstance();
+        $userId = $_SESSION['user_id'];
+        $titulo = !empty(trim($_POST['titulo'])) ? trim($_POST['titulo']) : 'Nova Apresentação ' . date('d/m H:i');
+    
+        $db->prepare("INSERT INTO documents (user_id, titulo, created_at, updated_at) VALUES (?, ?, NOW(), NOW())")->execute([$userId, $titulo]);
+        $id = $db->lastInsertId();
+    
+        $fileName = "presentation_{$id}.pptx";
+        $this->setupFile($id, $fileName, 'pptx');
+    
+        header("Location: " . BASE_URL . "/editor-beta/presentation/" . $id);
+        exit;
+    }
+    
+    /**
+     * Função Auxiliar Unificada para configurar o arquivo
+     */
+    // private function setupFile($id, $fileName, $type) {
+    //     $relativeDir = "/public/storage/documentos/";
+    //     $storageDir = $_SERVER['DOCUMENT_ROOT'] . $relativeDir;
+    //     $absoluteFilePath = $storageDir . $fileName;
+    //     $defaultFile = $storageDir . "default." . $type;
+    
+    //     // 1. Garante que a pasta existe com permissão total para o PHP
+    //     if (!is_dir($storageDir)) {
+    //         mkdir($storageDir, 0755, true); 
+    //     }
+    
+    //     // 2. Garante que o arquivo default existe (se não existir, cria agora)
+    //     if (!file_exists($defaultFile)) {
+    //         if ($type == 'docx') $this->createDefaultDocIfNotExists($defaultFile);
+    //         if ($type == 'xlsx') $this->createDefaultXlsxIfNotExists($defaultFile);
+    //         if ($type == 'pptx') $this->createDefaultPptxIfNotExists($defaultFile);
+    //     }
+    
+    //     // 3. Copia o arquivo
+    //     if (!copy($defaultFile, $absoluteFilePath)) {
+    //         // Se falhar aqui, tente usar file_put_contents para "forçar" a criação
+    //         $content = file_get_contents($defaultFile);
+    //         file_put_contents($absoluteFilePath, $content);
+    //     }
+    
+    //     // 4. Dá permissão de escrita para o OnlyOffice conseguir salvar depois
+    //     chmod($absoluteFilePath, 0666);
+    
+    //     $db = Database::getInstance();
+    //     $db->prepare("UPDATE documents SET file_path = ? WHERE id = ?")
+    //       ->execute([$relativeDir . $fileName, $id]);
+    // }
+    private function setupFile($id, $fileName, $type) {
+        $relativeDir = "/public/storage/documentos/";
+        $storageDir = $_SERVER['DOCUMENT_ROOT'] . $relativeDir;
+        
+        // GERAR UUID PARA O NOME FÍSICO
+        $uid = bin2hex(random_bytes(16)); // Gera uma string única de 32 caracteres
+        $newPhysicalName = "{$uid}.{$type}";
+        $absoluteFilePath = $storageDir . $newPhysicalName;
+        
+        $defaultFile = $storageDir . "default." . $type;
 
+        if (!is_dir($storageDir)) {
+            mkdir($storageDir, 0755, true); 
+        }
+
+        if (!file_exists($defaultFile)) {
+            if ($type == 'docx') $this->createDefaultDocIfNotExists($defaultFile);
+            if ($type == 'xlsx') $this->createDefaultXlsxIfNotExists($defaultFile);
+            if ($type == 'pptx') $this->createDefaultPptxIfNotExists($defaultFile);
+        }
+
+        // Copia o template para o arquivo com nome UUID
+        if (copy($defaultFile, $absoluteFilePath)) {
+            chmod($absoluteFilePath, 0666);
+        }
+
+        $db = Database::getInstance();
+        // SALVAMOS O CAMINHO COM UUID NO BANCO
+        $db->prepare("UPDATE documents SET file_path = ?, updated_at = NOW() WHERE id = ?")
+        ->execute([$relativeDir . $newPhysicalName, $id]);
+    }
+    
+    // Metodo para compartilhar um documento com outro usuário
+    public function share()
+    {
+        $documentId = $_POST['document_id'];
+        $targetEmail = $_POST['email'];
+        $canEdit = $_POST['can_edit'] ?? 0;
+        $ownerId = $_SESSION['user_id'];
+
+        $db = Database::getInstance();
+        
+        // 1. Verifica se quem está compartilhando é o dono
+        $stmt = $db->prepare("SELECT id FROM documents WHERE id = ? AND user_id = ?");
+        $stmt->execute([$documentId, $ownerId]);
+        if (!$stmt->fetch()) {
+            die(json_encode(['error' => 'Apenas o dono pode compartilhar.']));
+        }
+
+        // 2. Busca o ID do usuário pelo e-mail
+        $stmt = $db->prepare("SELECT id FROM users WHERE email = ?"); // ajuste para sua tabela de users
+        $stmt->execute([$targetEmail]);
+        $targetUser = $stmt->fetch();
+
+        if (!$targetUser) {
+            die(json_encode(['error' => 'Usuário não encontrado.']));
+        }
+
+        // 3. Insere a permissão
+        $stmt = $db->prepare("INSERT INTO document_shares (document_id, user_id, can_edit) VALUES (?, ?, ?) 
+                            ON DUPLICATE KEY UPDATE can_edit = ?");
+        $stmt->execute([$documentId, $targetUser->id, $canEdit, $canEdit]);
+
+        echo json_encode(['success' => 'Compartilhado com sucesso!']);
+    }
 }

@@ -233,5 +233,13 @@ INSERT INTO permissions (chave, descricao) VALUES
 ('roles.manage', 'Gerenciar roles');
 
 
+CREATE TABLE document_shares (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    document_id INT NOT NULL,
+    user_id INT NOT NULL, -- ID do usuário que recebe o acesso
+    can_edit TINYINT(1) DEFAULT 0, -- 0 = Ver, 1 = Editar
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+);
 
 

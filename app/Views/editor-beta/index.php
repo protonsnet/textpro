@@ -9,11 +9,17 @@
 </style>
 
 <div id="loading">Carregando Editor OnlyOffice...</div>
+<div style="position: fixed; top: 10px; right: 250px; z-index: 10000;">
+    <button onclick="openShareModal()" style="background: #448aff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+        <i class="fa fa-share-alt"></i> Compartilhar
+    </button>
+</div>
+
 <div id="placeholder"></div>
 
-<script type="text/javascript" src="http://192.168.0.102:8081/web-apps/apps/api/documents/api.js"></script>
+<!--<script type="text/javascript" src="http://192.168.0.102:8081/web-apps/apps/api/documents/api.js"></script>-->
 <!-- Produção -->
-<!-- <script type="text/javascript" src="https://office.moveflexi.com/web-apps/apps/api/documents/api.js"></script> -->
+ <script type="text/javascript" src="https://office.moveflexi.com/web-apps/apps/api/documents/api.js"></script> 
 
 <script>
     function initEditor() {
@@ -49,4 +55,18 @@
 
     // Aguarda o carregamento da janela para iniciar
     window.onload = initEditor;
+    
+    function openShareModal() {
+        const email = prompt("Digite o e-mail do usuário para compartilhar:");
+        if (email) {
+            // Envie via Fetch/AJAX para a rota /editor-beta/share
+            fetch('<?= BASE_URL ?>/editor-beta/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `document_id=<?= $doc->id ?>&email=${email}&can_edit=1`
+            })
+            .then(r => r.json())
+            .then(data => alert(data.success || data.error));
+        }
+    }
 </script>

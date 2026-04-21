@@ -11,10 +11,21 @@ if ($body) {
         $newData = file_get_contents($downloadUrl);
         
         $fileName = "Documento_Beta_V2.docx";
-        file_put_contents("./storage/" . $fileName, $newData);
+        // file_put_contents("./storage/" . $fileName, $newData);
+        $path = APP_ROOT . '/public/storage/documentos/' . $fileName;
 
-        // AQUI você insere ou atualiza no seu MySQL
-        // $db->query("UPDATE documentos SET path = '$fileName' WHERE id = 1");
+        file_put_contents($path, $newData);
+
+        $documentId = $data["key"]; // ou você define isso no config
+
+        $db->prepare("
+            UPDATE documents 
+            SET file_path = :path, updated_at = NOW()
+            WHERE id = :id
+        ")->execute([
+            ':path' => $fileName,
+            ':id'   => $documentId
+        ]);
     }
 }
 echo json_encode(["error" => 0]);

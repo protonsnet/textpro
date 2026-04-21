@@ -14,6 +14,15 @@ require_once APP_ROOT . '/vendor/autoload.php';
 
 session_start();
 
+$currentUri = $_SERVER['REQUEST_URI'];
+
+// Se for o callback do ONLYOFFICE, desativamos verificações de sessão
+if (strpos($currentUri, 'editor-beta/callback') !== false) {
+    define('IS_CALLBACK', true);
+} else {
+    define('IS_CALLBACK', false);
+}
+
 $dotenv = Dotenv\Dotenv::createImmutable(APP_ROOT);
 $dotenv->load();
 
@@ -95,6 +104,7 @@ $router->get('/editor-beta/presentation/(\d+)', 'OnlyOfficeController@presentati
 
 // Callback unificado (o OnlyOffice envia o status para cá independente do tipo)
 $router->post('/editor-beta/callback', 'OnlyOfficeController@callback');
+$router->get('/editor-beta/callback', 'OnlyOfficeController@callback');
 
 
 // =============================================================
