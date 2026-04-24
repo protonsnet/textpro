@@ -22,7 +22,7 @@ class AsaasService {
         $headers = [
             'Content-Type: application/json',
             'access_token: ' . $this->apiKey,
-            'User-Agent: TextPro/1.0'
+            'User-Agent: NexoWriter/1.0'
         ];
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 

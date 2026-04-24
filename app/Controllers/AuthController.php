@@ -25,7 +25,7 @@ class AuthController extends Controller
     public function registerForm(): void
     {
         $this->viewPublic('auth/register', [
-            'title' => 'Cadastro TextPro'
+            'title' => 'Cadastro NexoWriter'
         ]);
     }
 
@@ -51,7 +51,7 @@ class AuthController extends Controller
 
         if ($senha !== $confirmarSenha) {
             $this->viewPublic('auth/register', [
-                'title' => 'Cadastro TextPro',
+                'title' => 'Cadastro NexoWriter',
                 'error' => 'As senhas não coincidem.'
             ]);
             return;
@@ -59,7 +59,7 @@ class AuthController extends Controller
 
         if ($this->userModel->findByEmail($email)) {
             $this->viewPublic('auth/register', [
-                'title' => 'Cadastro TextPro',
+                'title' => 'Cadastro NexoWriter',
                 'error' => 'Este email já está cadastrado.'
             ]);
             return;
@@ -87,7 +87,7 @@ class AuthController extends Controller
         }
 
         $this->viewPublic('auth/register', [
-            'title' => 'Cadastro TextPro',
+            'title' => 'Cadastro NexoWriter',
             'error' => 'Erro ao cadastrar. Tente novamente.'
         ]);
     }
@@ -99,7 +99,7 @@ class AuthController extends Controller
     public function loginForm(): void
     {
         $this->viewPublic('auth/login', [
-            'title' => 'Login TextPro'
+            'title' => 'Login NexoWriter'
         ]);
     }
 
@@ -117,7 +117,7 @@ class AuthController extends Controller
 
         if (!$user || !password_verify($senha, $user->senha)) {
             $this->viewPublic('auth/login', [
-                'title' => 'Login TextPro',
+                'title' => 'Login NexoWriter',
                 'error' => 'Credenciais inválidas.'
             ]);
             return;
@@ -179,7 +179,7 @@ class AuthController extends Controller
     public function forgotPasswordForm(): void
     {
         $this->viewPublic('auth/forgot-password', [
-            'title' => 'Recuperar Senha - TextPro'
+            'title' => 'Recuperar Senha - NexoWriter'
         ]);
     }
 
@@ -267,7 +267,7 @@ class AuthController extends Controller
             $mail->CharSet    = 'UTF-8';
 
             // Destinatário
-            $mail->setFrom($_ENV['MAIL_USER'], $_ENV['MAIL_FROM_NAME'] ?? 'TextPro Suporte');
+            $mail->setFrom($_ENV['MAIL_USER'], $_ENV['MAIL_FROM_NAME'] ?? 'NexoWriter Suporte');
             $mail->addAddress($email);
 
             // Pega o protocolo (http ou https)
@@ -278,7 +278,7 @@ class AuthController extends Controller
             // Conteúdo
             $url = $protocol . "://" . $domain . BASE_URL . "/reset-password?token=" . $token;
             $mail->isHTML(true);
-            $mail->Subject = 'Recuperação de Senha - TextPro';
+            $mail->Subject = 'Recuperação de Senha - NexoWriter';
             $mail->Body    = "Você solicitou a alteração de senha. Clique no link abaixo para cadastrar uma nova:<br><br>
                             <a href='{$url}'>{$url}</a><br><br>
                             Se não foi você, ignore este e-mail. Este link expira em 1 hora.";

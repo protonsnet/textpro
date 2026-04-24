@@ -98,7 +98,7 @@ class DocumentController extends Controller
         $fontService = new FontService();
 
         // $this->view('client/editor', [
-        //     'title'              => 'Editor TextPro',
+        //     'title'              => 'Editor NexoWriter',
         //     'document'           => $document,
         //     'content'            => $content,
         //     'currentTemplate'    => $currentTemplate,
@@ -106,7 +106,7 @@ class DocumentController extends Controller
         //     'availableFonts'     => $fontService->getFontNames()
         // ]);
         $this->view('client/editor', [
-            'title'              => 'Editor TextPro',
+            'title'              => 'Editor NexoWriter',
             'document'           => $document,
             'no_sidebar'         => true,
             'content'            => $content,

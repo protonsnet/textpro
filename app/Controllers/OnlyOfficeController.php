@@ -65,16 +65,29 @@ class OnlyOfficeController extends Controller
         $fileUrl = $baseUrl . ($doc->file_path ?? "/public/storage/documentos/default.docx");
         $callbackUrl = $baseUrl . "/editor-beta/callback";
         
+        $extension = pathinfo($doc->file_path, PATHINFO_EXTENSION) ?: 'docx';
+
+        // Mapeia o tipo de documento para o OnlyOffice
+        $typeMap = [
+            'docx' => 'word',
+            'doc'  => 'word',
+            'xlsx' => 'cell',
+            'xls'  => 'cell',
+            'pptx' => 'slide',
+            'ppt'  => 'slide',
+        ];
+        $docType = $typeMap[$extension] ?? 'word';
+
         $config = [
             "document" => [
-                "fileType" => "docx",
+                "fileType" => $extension,
                 // A KEY baseada no updated_at força o OnlyOffice a recarregar o arquivo se ele mudar no disco
                 "key" => "DOC_" . $doc->id . "_" . strtotime($doc->updated_at),
                 "title" => $doc->titulo,
                 "url" => $fileUrl,
-                "permissions" => [ "edit" => true, "download" => true ]
+                "permissions" => [ "edit" => (bool)$canEdit, "download" => true ]
             ],
-            "documentType" => "word",
+            "documentType" => $docType,
             "editorConfig" => [
                 "callbackUrl" => $callbackUrl,
                 // Produção
@@ -224,18 +237,29 @@ class OnlyOfficeController extends Controller
         // Captura o termo de busca via GET
         $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-        // CORREÇÃO: Adicionado 'file_path' no SELECT para que a View possa identificar o tipo de arquivo
-        $query = "SELECT id, titulo, file_path, updated_at FROM documents 
-                WHERE user_id = ? AND file_path IS NOT NULL";
-        $params = [$userId];
+        /**
+         * AJUSTE NA QUERY:
+         * 1. Selecionamos os campos da tabela documents (d.*).
+         * 2. Fazemos um LEFT JOIN com document_shares (ds) para verificar se o ID do usuário logado está lá.
+         * 3. No WHERE, buscamos documentos onde o usuário é o DONO (d.user_id) 
+         * OU onde ele é o BENEFICIÁRIO do compartilhamento (ds.user_id).
+         * 4. Usamos GROUP BY para evitar duplicatas caso um arquivo seja listado por ambos os critérios.
+         */
+        $query = "SELECT d.id, d.titulo, d.file_path, d.updated_at 
+                FROM documents d
+                LEFT JOIN document_shares ds ON d.id = ds.document_id
+                WHERE (d.user_id = ? OR ds.user_id = ?) 
+                AND d.file_path IS NOT NULL";
+        
+        $params = [$userId, $userId];
 
         // Se houver busca, adiciona o filtro à query
         if (!empty($search)) {
-            $query .= " AND titulo LIKE ?";
+            $query .= " AND d.titulo LIKE ?";
             $params[] = "%{$search}%";
         }
 
-        $query .= " ORDER BY updated_at DESC";
+        $query .= " GROUP BY d.id ORDER BY d.updated_at DESC";
 
         $stmt = $db->prepare($query);
         $stmt->execute($params);
@@ -243,7 +267,7 @@ class OnlyOfficeController extends Controller
 
         return $this->view('documents/list', [
             'documents' => $documents,
-            'searchTerm' => $search, // Passamos o termo de volta para a view
+            'searchTerm' => $search,
             'title' => 'Meus Arquivos'
         ]);
     }
@@ -442,41 +466,6 @@ class OnlyOfficeController extends Controller
         exit;
     }
     
-    /**
-     * Função Auxiliar Unificada para configurar o arquivo
-     */
-    // private function setupFile($id, $fileName, $type) {
-    //     $relativeDir = "/public/storage/documentos/";
-    //     $storageDir = $_SERVER['DOCUMENT_ROOT'] . $relativeDir;
-    //     $absoluteFilePath = $storageDir . $fileName;
-    //     $defaultFile = $storageDir . "default." . $type;
-    
-    //     // 1. Garante que a pasta existe com permissão total para o PHP
-    //     if (!is_dir($storageDir)) {
-    //         mkdir($storageDir, 0755, true); 
-    //     }
-    
-    //     // 2. Garante que o arquivo default existe (se não existir, cria agora)
-    //     if (!file_exists($defaultFile)) {
-    //         if ($type == 'docx') $this->createDefaultDocIfNotExists($defaultFile);
-    //         if ($type == 'xlsx') $this->createDefaultXlsxIfNotExists($defaultFile);
-    //         if ($type == 'pptx') $this->createDefaultPptxIfNotExists($defaultFile);
-    //     }
-    
-    //     // 3. Copia o arquivo
-    //     if (!copy($defaultFile, $absoluteFilePath)) {
-    //         // Se falhar aqui, tente usar file_put_contents para "forçar" a criação
-    //         $content = file_get_contents($defaultFile);
-    //         file_put_contents($absoluteFilePath, $content);
-    //     }
-    
-    //     // 4. Dá permissão de escrita para o OnlyOffice conseguir salvar depois
-    //     chmod($absoluteFilePath, 0666);
-    
-    //     $db = Database::getInstance();
-    //     $db->prepare("UPDATE documents SET file_path = ? WHERE id = ?")
-    //       ->execute([$relativeDir . $fileName, $id]);
-    // }
     private function setupFile($id, $fileName, $type) {
         $relativeDir = "/public/storage/documentos/";
         $storageDir = $_SERVER['DOCUMENT_ROOT'] . $relativeDir;
@@ -512,34 +501,41 @@ class OnlyOfficeController extends Controller
     // Metodo para compartilhar um documento com outro usuário
     public function share()
     {
-        $documentId = $_POST['document_id'];
-        $targetEmail = $_POST['email'];
-        $canEdit = $_POST['can_edit'] ?? 0;
-        $ownerId = $_SESSION['user_id'];
+        // Limpa qualquer saída anterior para garantir JSON puro
+        if (ob_get_level()) ob_end_clean();
+        header('Content-Type: application/json');
 
-        $db = Database::getInstance();
-        
-        // 1. Verifica se quem está compartilhando é o dono
-        $stmt = $db->prepare("SELECT id FROM documents WHERE id = ? AND user_id = ?");
-        $stmt->execute([$documentId, $ownerId]);
-        if (!$stmt->fetch()) {
-            die(json_encode(['error' => 'Apenas o dono pode compartilhar.']));
+        $documentId = $_POST['document_id'] ?? null;
+        $targetEmail = $_POST['email'] ?? null;
+        $canEdit = $_POST['can_edit'] ?? 0;
+        $ownerId = $_SESSION['user_id'] ?? null;
+
+        if (!$documentId || !$targetEmail || !$ownerId) {
+            echo json_encode(['error' => 'Dados incompletos. Verifique se está logado.']);
+            exit;
         }
 
-        // 2. Busca o ID do usuário pelo e-mail
-        $stmt = $db->prepare("SELECT id FROM users WHERE email = ?"); // ajuste para sua tabela de users
+        $db = \App\Core\Database::getInstance();
+        
+        // Use system_users conforme seu arquivo SQL
+        $stmt = $db->prepare("SELECT id FROM system_users WHERE email = ?");
         $stmt->execute([$targetEmail]);
         $targetUser = $stmt->fetch();
 
         if (!$targetUser) {
-            die(json_encode(['error' => 'Usuário não encontrado.']));
+            echo json_encode(['error' => 'E-mail não encontrado no sistema.']);
+            exit;
         }
 
-        // 3. Insere a permissão
-        $stmt = $db->prepare("INSERT INTO document_shares (document_id, user_id, can_edit) VALUES (?, ?, ?) 
-                            ON DUPLICATE KEY UPDATE can_edit = ?");
-        $stmt->execute([$documentId, $targetUser->id, $canEdit, $canEdit]);
-
-        echo json_encode(['success' => 'Compartilhado com sucesso!']);
+        // Restante da sua lógica de INSERT...
+        try {
+            $stmt = $db->prepare("INSERT INTO document_shares (document_id, user_id, can_edit) VALUES (?, ?, ?) 
+                                ON DUPLICATE KEY UPDATE can_edit = ?");
+            $stmt->execute([$documentId, $targetUser->id, $canEdit, $canEdit]);
+            echo json_encode(['success' => 'Arquivo compartilhado com sucesso!']);
+        } catch (\Exception $e) {
+            echo json_encode(['error' => 'Erro ao salvar: ' . $e->getMessage()]);
+        }
+        exit;
     }
 }

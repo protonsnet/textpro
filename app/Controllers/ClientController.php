@@ -61,7 +61,7 @@ class ClientController extends Controller
     public function passwordForm(): void
     {
         $this->view('client/change_password', [
-            'title' => 'Alterar Senha - TextPro'
+            'title' => 'Alterar Senha - NexoWriter'
         ]);
     }
 
@@ -120,11 +120,12 @@ class ClientController extends Controller
                 $db = \App\Core\Database::getInstance();
                 $stmt = $db->prepare("UPDATE documents SET titulo = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
                 $stmt->execute([$novoTitulo, $id, $userId]);
+                
+                // Retorno para o Fetch do JavaScript
+                header('Content-Type: application/json');
+                echo json_encode(['success' => 'Arquivo renomeado com sucesso!']);
+                exit;
             }
         }
-        
-        // Redireciona de volta para onde o usuário estava
-        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? BASE_URL . "/dashboard"));
-        exit;
     }
 }

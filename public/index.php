@@ -106,6 +106,8 @@ $router->get('/editor-beta/presentation/(\d+)', 'OnlyOfficeController@presentati
 $router->post('/editor-beta/callback', 'OnlyOfficeController@callback');
 $router->get('/editor-beta/callback', 'OnlyOfficeController@callback');
 
+$router->post('/editor-beta/share', 'OnlyOfficeController@share');
+
 
 // =============================================================
 // ÁREA ADMIN
